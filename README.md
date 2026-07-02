@@ -1,4 +1,4 @@
-# poker-comb-count-drill
+# poker-combo-count-drill
 
 ポーカーでコンボ数を数える練習をするためのアプリです。
 
@@ -17,4 +17,4 @@ npm run build
 
 ## GitHub Pages
 
-公開URL: https://jhonyspicy.github.io/poker-comb-count-drill/
+公開URL: https://jhonyspicy.github.io/poker-combo-count-drill/
