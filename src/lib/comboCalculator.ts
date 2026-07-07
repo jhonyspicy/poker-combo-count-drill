@@ -20,17 +20,18 @@ export function cardToString(card: Card): string {
   return `${card.rank}${SUIT_SYMBOL[card.suit]}`;
 }
 
+// C(n,2) = n*(n-1)/2。n<2 のときは組み合わせ不成立なので 0
 function comb2(n: number): number {
   return n >= 2 ? (n * (n - 1)) / 2 : 0;
 }
 
-// C(remainingSuits, 2) where remainingSuits = 4 - deadCards of this rank
+// デッドカードを除いた残りスーツ数から C(残り,2) を計算
 export function pairCombos(rank: Rank, deadCards: Card[]): number {
   const deadCount = deadCards.filter(c => c.rank === rank).length;
   return comb2(4 - deadCount);
 }
 
-// Count suits where both rank1 and rank2 are still alive
+// 両ランクのカードが同一スーツで両方生きているスーツ数 = スーテッドコンボ数
 export function suitedCombos(rank1: Rank, rank2: Rank, deadCards: Card[]): number {
   let count = 0;
   for (const suit of SUITS) {
@@ -41,7 +42,7 @@ export function suitedCombos(rank1: Rank, rank2: Rank, deadCards: Card[]): numbe
   return count;
 }
 
-// (remaining rank1) × (remaining rank2) − suitedCombos
+// 全体（残り rank1 × 残り rank2）からスーテッドを引いてオフスートを導出
 export function offsuitCombos(rank1: Rank, rank2: Rank, deadCards: Card[]): number {
   const r1Left = 4 - deadCards.filter(c => c.rank === rank1).length;
   const r2Left = 4 - deadCards.filter(c => c.rank === rank2).length;

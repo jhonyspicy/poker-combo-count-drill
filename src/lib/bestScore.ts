@@ -28,7 +28,7 @@ export function saveBestScore(best: BestScore): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(best));
 }
 
-// Returns true if the new score beats the stored best.
+// 新スコアが保存済みベストを上回る場合のみ更新し true を返す
 export function tryUpdateBestScore(score: number, level: number): boolean {
   const current = loadBestScore();
   if (current && current.score >= score) return false;

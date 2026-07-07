@@ -12,7 +12,7 @@ export const BASE_TIME_SEC: Record<QuestionType, number> = {
 export const TIME_SCALE_FACTOR = 0.92;
 export const TIME_FLOOR_RATIO = 0.5;
 
-// Index = level - 1. Levels beyond the array use the last entry.
+// インデックスは level - 1。配列長を超えたレベルは末尾エントリを使用
 export const LEVEL_TYPE_WEIGHTS: Record<QuestionType, number>[] = [
   { simple: 1, flop: 0, turn: 0, river: 0 }, // Lv1
   { simple: 1, flop: 1, turn: 0, river: 0 }, // Lv2

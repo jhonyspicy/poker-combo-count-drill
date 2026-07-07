@@ -14,7 +14,7 @@ export interface Question {
   type: QuestionType;
 }
 
-// ---- Simple questions (fixed data) ----
+// ---- 固定問題プール（単純問題） ----
 
 const SIMPLE_POOL: { text: string; answer: number; explanation: string }[] = [
   {
@@ -59,7 +59,7 @@ const SIMPLE_POOL: { text: string; answer: number; explanation: string }[] = [
   },
 ];
 
-// ---- Board generation ----
+// ---- ボード生成 ----
 
 function generateBoard(size: 3 | 4 | 5): Card[] {
   const deck: Card[] = [];
@@ -75,7 +75,7 @@ function generateBoard(size: 3 | 4 | 5): Card[] {
   return deck.slice(0, size);
 }
 
-// Ranks we ask about in dead card questions (high cards, more poker-relevant)
+// デッドカード問題で出題対象とするランク（高いランクほどポーカーの実戦で重要）
 const QUERY_RANKS: Rank[] = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7'];
 
 function pickRank(board: Card[], exclude?: Rank): Rank {
@@ -90,7 +90,7 @@ function boardString(board: Card[]): string {
   return board.map(cardToString).join(' ');
 }
 
-// ---- Distractor generation ----
+// ---- 誤答候補の生成 ----
 
 function generateDistractors(answer: number, ...hints: number[]): number[] {
   const used = new Set<number>([answer]);
@@ -109,12 +109,12 @@ function generateDistractors(answer: number, ...hints: number[]): number[] {
       used.add(v);
     }
   }
-  // Shuffle candidates
+  // シャッフルして順序をランダム化
   for (let i = candidates.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
   }
-  // Ensure at least 3
+  // 候補が3つ未満の場合は正解+10から順に補充
   let filler = answer + 10;
   while (candidates.length < 3) {
     if (!used.has(filler)) { candidates.push(filler); used.add(filler); }
@@ -132,7 +132,7 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-// ---- Dead card question factories ----
+// ---- デッドカード問題の生成ファクトリ ----
 
 function makePairQuestion(board: Card[], type: QuestionType): Question {
   const rank = pickRank(board);
@@ -210,7 +210,7 @@ function makeOffsuitQuestion(board: Card[], type: QuestionType): Question {
 type HandCategory = 'pair' | 'suited' | 'offsuit';
 
 function pickHandCategory(): HandCategory {
-  // offsuit is most common in poker → give it more weight
+  // オフスートはポーカーで最も頻出のため出題頻度を高くしている
   const cats: HandCategory[] = ['pair', 'suited', 'offsuit', 'offsuit'];
   return cats[Math.floor(Math.random() * cats.length)];
 }
@@ -229,7 +229,7 @@ function makeBoardQuestion(type: QuestionType): Question {
 
     if (q.answer >= 1) return q;
   }
-  // Fallback: simple question (rare edge case)
+  // 10回試行してもコンボ数が0になる場合（極めてレアなボード）は単純問題で代替
   return makeSimpleQuestion();
 }
 
@@ -245,7 +245,7 @@ function makeSimpleQuestion(): Question {
   };
 }
 
-// ---- Public API ----
+// ---- 公開 API ----
 
 export function generateQuestion(level: number): Question {
   const type = pickRandomType(level);
