@@ -20,6 +20,7 @@ npm run lint     # ESLint
 - `vite.config.ts` の `base: '/poker-combo-count-drill/'` は GitHub Pages 用。アセット参照はこれを前提にする
 - main へ push すると GitHub Actions（.github/workflows/deploy.yml）で自動デプロイされる
 - **サーバー・API・ログインは持たない**。永続化は localStorage のみ（自己ベストスコア）
+- ソースコード中のコメントは日本語を使う
 
 ## 設計方針
 
