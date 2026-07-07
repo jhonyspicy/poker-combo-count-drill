@@ -17,16 +17,17 @@ export default function PlayPage() {
   const [questionsInLevel, setQuestionsInLevel] = useState(0);
   const [{ question, timeLimitMs }, setQState] = useState(initQuestion);
   const [timerKey, setTimerKey] = useState(0);
-  const [timeLeftMs, setTimeLeftMs] = useState(() => initQuestion().timeLimitMs);
+  const [timeLeftMs, setTimeLeftMs] = useState(timeLimitMs);
   const [levelUpVisible, setLevelUpVisible] = useState(false);
 
   // Refs so the timer interval can read latest values without re-running the effect
   const stateRef = useRef({ score, level, question });
-  stateRef.current = { score, level, question };
+  useEffect(() => {
+    stateRef.current = { score, level, question };
+  }, [score, level, question]);
 
   useEffect(() => {
     const startTime = Date.now();
-    setTimeLeftMs(timeLimitMs);
 
     const id = setInterval(() => {
       const remaining = timeLimitMs - (Date.now() - startTime);
@@ -41,7 +42,6 @@ export default function PlayPage() {
     }, 50);
 
     return () => clearInterval(id);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timerKey, timeLimitMs, navigate]);
 
   function handleChoice(choice: number) {
@@ -69,6 +69,7 @@ export default function PlayPage() {
     const nextTimeLimitMs = getTimeLimitSec(nextQ.type, nextLevel) * 1000;
     setScore(newScore);
     setQState({ question: nextQ, timeLimitMs: nextTimeLimitMs });
+    setTimeLeftMs(nextTimeLimitMs);
     setTimerKey(k => k + 1);
   }
 
@@ -103,7 +104,7 @@ export default function PlayPage() {
       </div>
 
       {/* Question + choices */}
-      <div className="flex-1 flex flex-col px-6 py-8 max-w-lg mx-auto w-full">
+      <div className="flex-1 flex flex-col px-4 py-8 w-full">
         <div className="flex-1 flex items-center justify-center">
           <p className="text-lg text-center leading-relaxed whitespace-pre-line">
             {question.text}

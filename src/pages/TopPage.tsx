@@ -14,7 +14,7 @@ export default function TopPage() {
     : null;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 flex flex-col items-center justify-between px-6 py-10 max-w-lg mx-auto">
+    <div className="min-h-screen bg-slate-950 text-slate-50 flex flex-col items-center justify-between px-4 py-10">
       {/* Title block */}
       <div className="text-center mt-6">
         <p className="text-3xl tracking-widest text-emerald-400 mb-2">♠ ♥ ♦ ♣</p>

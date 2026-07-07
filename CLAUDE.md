@@ -21,6 +21,7 @@ npm run lint     # ESLint
 - main へ push すると GitHub Actions（.github/workflows/deploy.yml）で自動デプロイされる
 - **サーバー・API・ログインは持たない**。永続化は localStorage のみ（自己ベストスコア）
 - ソースコード中のコメントは日本語を使う
+- gitのリモートリポジトリへの更新は絶対にやらないでください。オーナーが手動でプッシュします。
 
 ## 設計方針
 

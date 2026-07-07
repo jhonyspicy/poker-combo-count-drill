@@ -23,7 +23,7 @@ export default function ResultPage() {
   const best = loadBestScore();
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 flex flex-col items-center px-6 py-10 max-w-lg mx-auto">
+    <div className="min-h-screen bg-slate-950 text-slate-50 flex flex-col items-center px-4 py-10">
       {/* Score */}
       <div className="text-center mt-6 w-full">
         <p className="text-slate-400 text-sm uppercase tracking-widest">今回のスコア</p>
