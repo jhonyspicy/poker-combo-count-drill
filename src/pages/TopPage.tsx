@@ -60,6 +60,17 @@ export default function TopPage() {
           </Link>
         </div>
 
+        <div className="text-center">
+          <a
+            href="https://jhonyspicy.github.io/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-slate-400 text-sm underline underline-offset-2"
+          >
+            アプリ一覧
+          </a>
+        </div>
+
         <p className="text-center text-slate-600 text-xs">
           不正解・時間切れでゲームオーバー
         </p>

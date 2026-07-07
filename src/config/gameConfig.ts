@@ -3,10 +3,10 @@ export type QuestionType = 'simple' | 'flop' | 'turn' | 'river';
 export const QUESTIONS_PER_LEVEL = 5;
 
 export const BASE_TIME_SEC: Record<QuestionType, number> = {
-  simple: 8,
-  flop: 15,
-  turn: 18,
-  river: 20,
+  simple: 16,
+  flop: 30,
+  turn: 36,
+  river: 40,
 };
 
 export const TIME_SCALE_FACTOR = 0.92;
