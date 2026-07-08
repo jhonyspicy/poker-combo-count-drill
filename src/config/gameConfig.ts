@@ -1,6 +1,7 @@
 export type QuestionType = 'simple' | 'flop' | 'turn' | 'river';
 
-export const QUESTIONS_PER_LEVEL = 5;
+// Lv2以降で次のレベルへ進むために必要な連続正解数
+export const MASTERY_STREAK = 20;
 
 export const BASE_TIME_SEC: Record<QuestionType, number> = {
   simple: 16,
@@ -12,30 +13,16 @@ export const BASE_TIME_SEC: Record<QuestionType, number> = {
 export const TIME_SCALE_FACTOR = 0.92;
 export const TIME_FLOOR_RATIO = 0.5;
 
-// インデックスは level - 1。配列長を超えたレベルは末尾エントリを使用
-export const LEVEL_TYPE_WEIGHTS: Record<QuestionType, number>[] = [
-  { simple: 1, flop: 0, turn: 0, river: 0 }, // Lv1
-  { simple: 1, flop: 1, turn: 0, river: 0 }, // Lv2
-  { simple: 1, flop: 1, turn: 1, river: 0 }, // Lv3
-  { simple: 1, flop: 2, turn: 2, river: 2 }, // Lv4+
-];
+// 各レベルに対応する問題タイプ（1レベル＝1タイプ）
+export function getLevelType(level: number): QuestionType {
+  if (level === 1) return 'simple';
+  if (level === 2) return 'flop';
+  if (level === 3) return 'turn';
+  return 'river';
+}
 
 export function getTimeLimitSec(type: QuestionType, level: number): number {
   const base = BASE_TIME_SEC[type];
   const scaled = base * Math.pow(TIME_SCALE_FACTOR, level - 1);
   return Math.max(base * TIME_FLOOR_RATIO, scaled);
-}
-
-export function getTypeWeights(level: number): Record<QuestionType, number> {
-  const idx = Math.min(level - 1, LEVEL_TYPE_WEIGHTS.length - 1);
-  return LEVEL_TYPE_WEIGHTS[idx];
-}
-
-export function pickRandomType(level: number): QuestionType {
-  const weights = getTypeWeights(level);
-  const pool: QuestionType[] = [];
-  for (const [type, weight] of Object.entries(weights) as [QuestionType, number][]) {
-    for (let i = 0; i < weight; i++) pool.push(type);
-  }
-  return pool[Math.floor(Math.random() * pool.length)];
 }

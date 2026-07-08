@@ -1,23 +1,34 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { generateQuestion } from '../lib/questions';
-import { getTimeLimitSec, QUESTIONS_PER_LEVEL } from '../config/gameConfig';
+import { generateQuestion, generateAllSimpleQuestions } from '../lib/questions';
+import type { Question } from '../lib/questions';
+import { getTimeLimitSec, getLevelType, MASTERY_STREAK } from '../config/gameConfig';
 import { tryUpdateBestScore } from '../lib/bestScore';
 
-function initQuestion() {
-  const q = generateQuestion(1);
-  return { question: q, timeLimitMs: getTimeLimitSec(q.type, 1) * 1000 };
+function initQState(firstQuestion: Question, level: number) {
+  return {
+    question: firstQuestion,
+    timeLimitMs: getTimeLimitSec(firstQuestion.type, level) * 1000,
+  };
 }
 
 export default function PlayPage() {
   const navigate = useNavigate();
 
+  // Lv1用: ゲーム開始時に全単純問題をシャッフルして保持（以降変更しない）
+  const [simpleQueue] = useState<Question[]>(() => generateAllSimpleQuestions());
+
   const [score, setScore] = useState(0);
   const [level, setLevel] = useState(1);
-  const [questionsInLevel, setQuestionsInLevel] = useState(0);
-  const [{ question, timeLimitMs }, setQState] = useState(initQuestion);
+  // レベル内の正解数（レベルアップ時に0にリセット）
+  const [progressInLevel, setProgressInLevel] = useState(0);
+  const [{ question, timeLimitMs }, setQState] = useState(() =>
+    initQState(simpleQueue[0], 1)
+  );
   const [timerKey, setTimerKey] = useState(0);
-  const [timeLeftMs, setTimeLeftMs] = useState(timeLimitMs);
+  const [timeLeftMs, setTimeLeftMs] = useState(() =>
+    getTimeLimitSec(simpleQueue[0].type, 1) * 1000
+  );
   const [levelUpVisible, setLevelUpVisible] = useState(false);
 
   // Refs so the timer interval can read latest values without re-running the effect
@@ -52,34 +63,55 @@ export default function PlayPage() {
     }
 
     const newScore = score + 1;
-    const newQInLevel = questionsInLevel + 1;
-    let nextLevel = level;
+    const newProgress = progressInLevel + 1;
 
-    if (newQInLevel >= QUESTIONS_PER_LEVEL) {
-      nextLevel = level + 1;
-      setLevel(nextLevel);
-      setQuestionsInLevel(0);
-      setLevelUpVisible(true);
-      setTimeout(() => setLevelUpVisible(false), 1500);
+    // Lv1: SIMPLE_POOL 全問正解でクリア、Lv2以降: MASTERY_STREAK 連続正解でレベルアップ
+    const masteryRequired = level === 1 ? simpleQueue.length : MASTERY_STREAK;
+    const isLevelClear = newProgress >= masteryRequired;
+
+    const nextLevel = isLevelClear ? level + 1 : level;
+    const nextProgress = isLevelClear ? 0 : newProgress;
+
+    // 次の問題を取得
+    let nextQ: Question;
+    if (nextLevel === 1) {
+      // Lv1中はキューの次の問題を順番に取り出す
+      nextQ = simpleQueue[nextProgress];
     } else {
-      setQuestionsInLevel(newQInLevel);
+      nextQ = generateQuestion(nextLevel);
     }
 
-    const nextQ = generateQuestion(nextLevel);
     const nextTimeLimitMs = getTimeLimitSec(nextQ.type, nextLevel) * 1000;
+
+    if (isLevelClear) {
+      setLevel(nextLevel);
+      setLevelUpVisible(true);
+      setTimeout(() => setLevelUpVisible(false), 1500);
+    }
     setScore(newScore);
+    setProgressInLevel(nextProgress);
     setQState({ question: nextQ, timeLimitMs: nextTimeLimitMs });
     setTimeLeftMs(nextTimeLimitMs);
     setTimerKey(k => k + 1);
   }
 
+  const masteryRequired = level === 1 ? simpleQueue.length : MASTERY_STREAK;
   const progress = Math.max(0, timeLeftMs / timeLimitMs);
   const timerColor =
     progress > 0.5 ? 'bg-emerald-500' : progress > 0.25 ? 'bg-amber-400' : 'bg-red-500';
 
+  // レベル別の問題タイプ表示名
+  const levelTypeLabel: Record<string, string> = {
+    simple: '基礎',
+    flop: 'フロップ',
+    turn: 'ターン',
+    river: 'リバー',
+  };
+  const currentTypeLabel = levelTypeLabel[getLevelType(level)] ?? '';
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50 flex flex-col relative">
-      {/* Level up overlay */}
+      {/* レベルアップオーバーレイ */}
       {levelUpVisible && (
         <div className="absolute inset-0 flex items-center justify-center bg-slate-950/80 z-20 pointer-events-none">
           <div className="text-center">
@@ -89,13 +121,16 @@ export default function PlayPage() {
         </div>
       )}
 
-      {/* Header */}
+      {/* ヘッダー */}
       <div className="px-4 py-3 flex justify-between items-center border-b border-slate-800">
-        <span className="text-slate-400 text-sm font-medium">Lv.{level}</span>
+        <div className="flex flex-col">
+          <span className="text-slate-400 text-sm font-medium">Lv.{level} {currentTypeLabel}</span>
+          <span className="text-slate-500 text-xs">{progressInLevel}/{masteryRequired}</span>
+        </div>
         <span className="text-lg font-bold">{score} 連続正解</span>
       </div>
 
-      {/* Timer bar */}
+      {/* タイマーバー */}
       <div className="h-2 bg-slate-800">
         <div
           className={`h-full ${timerColor}`}
@@ -103,7 +138,7 @@ export default function PlayPage() {
         />
       </div>
 
-      {/* Question + choices */}
+      {/* 問題と選択肢 */}
       <div className="flex-1 flex flex-col px-4 py-8 w-full">
         <div className="flex-1 flex items-center justify-center">
           <p className="text-lg text-center leading-relaxed whitespace-pre-line">

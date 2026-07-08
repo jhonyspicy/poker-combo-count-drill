@@ -1,7 +1,4 @@
-## Purpose
-ゲームの難易度進行を管理する。レベルに応じた出題タイプ構成・制限時間スケーリングを制御し、設定値を一元管理する。
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: レベル進行
 各レベルに定義された習熟条件を達成したとき、レベルが1上がる SHALL。習熟条件はレベルによって異なる。
@@ -37,20 +34,8 @@
 - **WHEN** レベルが 4 以上のとき問題を生成する
 - **THEN** リバー（river）問題のみが出題される
 
-### Requirement: 制限時間のスケーリング
-問題タイプごとの基準時間に、レベルに応じた短縮係数を掛けた値を制限時間とする SHALL。下限は基準時間の 50%。
+## REMOVED Requirements
 
-#### Scenario: Lv1 の制限時間（単純問題）
-- **WHEN** レベル 1 で単純問題が出題される
-- **THEN** 制限時間は基準時間（16秒）になる
-
-#### Scenario: 下限クリッピング
-- **WHEN** 短縮係数の累乗が基準時間の 50% 未満になるレベルで問題が出題される
-- **THEN** 制限時間は基準時間の 50% でクリップされる
-
-### Requirement: 設定値の一元管理
-難易度に関わるすべての数値（問題数・基準時間・短縮係数・出題構成）を `src/config/gameConfig.ts` に集約する SHALL。
-
-#### Scenario: 設定変更の反映
-- **WHEN** gameConfig の数値を変更する
-- **THEN** コンポーネントを変更せずにゲームの難易度が変化する
+### Requirement: レベル別出題タイプ構成（旧）
+**Reason**: レベルが上がるほど下位タイプが混在する旧設計を廃止し、1レベル＝1タイプの習熟型設計に移行する。
+**Migration**: `LEVEL_TYPE_WEIGHTS` と `pickRandomType` を削除し、`getLevelType(level)` に置き換える。`QUESTIONS_PER_LEVEL` は削除し、レベルごとの習熟条件定数（`MASTERY_STREAK`）に置き換える。

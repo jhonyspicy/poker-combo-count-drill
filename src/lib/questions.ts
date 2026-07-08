@@ -4,7 +4,7 @@ import {
   pairCombos, suitedCombos, offsuitCombos,
 } from './comboCalculator';
 import type { QuestionType } from '../config/gameConfig';
-import { pickRandomType } from '../config/gameConfig';
+import { getLevelType } from '../config/gameConfig';
 
 export interface Question {
   text: string;
@@ -247,8 +247,23 @@ function makeSimpleQuestion(): Question {
 
 // ---- 公開 API ----
 
+// Lv1用: SIMPLE_POOL の全問をシャッフルして Question 配列として返す
+export function generateAllSimpleQuestions(): Question[] {
+  const questions = SIMPLE_POOL.map(q => {
+    const distractors = generateDistractors(q.answer);
+    return {
+      text: q.text,
+      answer: q.answer,
+      choices: shuffle([q.answer, ...distractors]),
+      explanation: q.explanation,
+      type: 'simple' as QuestionType,
+    };
+  });
+  return shuffle(questions);
+}
+
+// Lv2以降用: レベルに対応したボード問題を1問生成する
 export function generateQuestion(level: number): Question {
-  const type = pickRandomType(level);
-  if (type === 'simple') return makeSimpleQuestion();
+  const type = getLevelType(level);
   return makeBoardQuestion(type);
 }
