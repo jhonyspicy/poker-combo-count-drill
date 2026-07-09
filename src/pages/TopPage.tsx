@@ -1,5 +1,10 @@
 import { useNavigate, Link } from 'react-router-dom';
 import { loadBestScore } from '../lib/bestScore';
+import { getLevelType } from '../config/gameConfig';
+import { LEVEL_TYPE_LABEL } from '../config/uiConfig';
+
+// デバッグボタンで開始できるレベル一覧
+const DEBUG_LEVELS = [1, 2, 3, 4, 5];
 
 export default function TopPage() {
   const navigate = useNavigate();
@@ -74,6 +79,27 @@ export default function TopPage() {
         <p className="text-center text-slate-600 text-xs">
           不正解・時間切れでゲームオーバー
         </p>
+
+        {/* デバッグ用: 任意レベルから開始（開発時のみ表示。Lv2以上は自己ベスト非記録） */}
+        {import.meta.env.DEV && (
+          <div className="pt-2 border-t border-slate-800">
+            <p className="text-center text-slate-600 text-xs mb-2">デバッグ: レベル指定で開始</p>
+            <div className="grid grid-cols-5 gap-2">
+              {DEBUG_LEVELS.map(lv => (
+                <button
+                  key={lv}
+                  onClick={() => navigate('/play', { state: { debugStartLevel: lv } })}
+                  className="bg-slate-900 hover:bg-slate-800 active:scale-95 border border-slate-700 rounded-lg py-2 transition-all touch-manipulation"
+                >
+                  <span className="block text-slate-300 text-sm font-bold">Lv.{lv}</span>
+                  <span className="block text-slate-500 text-[10px]">
+                    {LEVEL_TYPE_LABEL[getLevelType(lv)]}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

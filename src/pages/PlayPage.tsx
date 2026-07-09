@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { generateQuestion, generateAllSimpleQuestions } from '../lib/questions';
 import type { Question } from '../lib/questions';
 import { getTimeLimitSec, getLevelType, MASTERY_STREAK } from '../config/gameConfig';
 import { tryUpdateBestScore } from '../lib/bestScore';
-import { FELT_COLORS } from '../config/uiConfig';
+import { FELT_COLORS, LEVEL_TYPE_LABEL } from '../config/uiConfig';
 import PlayingCard from '../components/PlayingCard';
 import RangeGrid from '../components/RangeGrid';
 
@@ -22,20 +22,31 @@ const CORRECT_FLASH_MS = 700;
 
 export default function PlayPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // デバッグ開始レベル（トップページのデバッグボタンから渡される。通常遷移は指定なし → Lv1）
+  const startLevel =
+    (location.state as { debugStartLevel?: number } | null)?.debugStartLevel ?? 1;
+  // Lv2以上からのデバッグ開始ランは自己ベストを記録しない
+  const isDebugRun = startLevel >= 2;
 
   // Lv1用: ゲーム開始時に全単純問題をシャッフルして保持（以降変更しない）
   const [simpleQueue] = useState<Question[]>(() => generateAllSimpleQuestions());
+  // 初回問題: Lv1開始はキューの先頭、Lv2以上のデバッグ開始は動的生成
+  const [firstQuestion] = useState<Question>(() =>
+    startLevel === 1 ? simpleQueue[0] : generateQuestion(startLevel)
+  );
 
   const [score, setScore] = useState(0);
-  const [level, setLevel] = useState(1);
+  const [level, setLevel] = useState(startLevel);
   // レベル内の正解数（レベルアップ時に0にリセット）
   const [progressInLevel, setProgressInLevel] = useState(0);
   const [{ question, timeLimitMs }, setQState] = useState(() =>
-    initQState(simpleQueue[0], 1)
+    initQState(firstQuestion, startLevel)
   );
   const [timerKey, setTimerKey] = useState(0);
   const [timeLeftMs, setTimeLeftMs] = useState(() =>
-    getTimeLimitSec(simpleQueue[0].type, 1) * 1000
+    getTimeLimitSec(firstQuestion.type, startLevel) * 1000
   );
   const [levelUpVisible, setLevelUpVisible] = useState(false);
   // 不正解時に選んだ選択肢の位置（null = 未回答）
@@ -62,7 +73,7 @@ export default function PlayPage() {
       if (remaining <= 0) {
         clearInterval(id);
         const { score: s, level: l, question: q } = stateRef.current;
-        const isNewBest = tryUpdateBestScore(s, l);
+        const isNewBest = isDebugRun ? false : tryUpdateBestScore(s, l);
         navigate('/result', { state: { score: s, level: l, question: q, isNewBest } });
       } else {
         setTimeLeftMs(remaining);
@@ -70,7 +81,7 @@ export default function PlayPage() {
     }, 50);
 
     return () => clearInterval(id);
-  }, [timerKey, timeLimitMs, navigate]);
+  }, [timerKey, timeLimitMs, navigate, isDebugRun]);
 
   // アンマウント時に残っているタイムアウトを掃除
   useEffect(() => {
@@ -86,7 +97,7 @@ export default function PlayPage() {
       // 不正解: タイマーを止めて正解をハイライトし、少し見せてからリザルトへ
       frozenRef.current = true;
       setWrongPick(index);
-      const isNewBest = tryUpdateBestScore(score, level);
+      const isNewBest = isDebugRun ? false : tryUpdateBestScore(score, level);
       setTimeout(() => {
         navigate('/result', { state: { score, level, question, isNewBest } });
       }, WRONG_FEEDBACK_MS);
@@ -136,15 +147,7 @@ export default function PlayPage() {
   // 残り時間が少なくなるとバーの色で警告する
   const timerColor = progress > 0.5 ? '#f5b83d' : progress > 0.25 ? '#fb923c' : '#ef4444';
 
-  // レベル別の問題タイプ表示名
-  const levelTypeLabel: Record<string, string> = {
-    simple: '基礎',
-    range: 'レンジ表',
-    flop: 'フロップ',
-    turn: 'ターン',
-    river: 'リバー',
-  };
-  const currentTypeLabel = levelTypeLabel[getLevelType(level)] ?? '';
+  const currentTypeLabel = LEVEL_TYPE_LABEL[getLevelType(level)];
 
   const answered = wrongPick !== null;
   const feedbackText = answered
