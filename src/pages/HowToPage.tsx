@@ -17,13 +17,30 @@ export default function HowToPage() {
       <section className="space-y-3 text-slate-300 text-sm leading-relaxed">
         <p>ポーカーのコンボ数を素早く数える力を鍛えるクイズアプリです。</p>
         <ol className="list-decimal list-inside space-y-2">
-          <li>スタートすると1問目が表示されます</li>
+          <li>トップページで難易度（初級・中級・上級）を選ぶとスタートします</li>
           <li>制限時間内に4択から正解を選んでください</li>
-          <li>正解すると即座に次の問題へ進みます（スコア +1）</li>
-          <li>5問正解ごとにレベルアップし、問題が難しくなります</li>
-          <li>不正解・時間切れでゲームオーバー。記録に挑戦しよう！</li>
+          <li>正解すると即座に次の問題へ進みます（連続正解 +1）</li>
+          <li>正解を重ねるほど制限時間が短くなっていきます</li>
+          <li>不正解・時間切れでゲームオーバー。難易度ごとの記録に挑戦しよう！</li>
         </ol>
       </section>
+
+      <h2 className="text-xl font-bold mt-10 mb-4">難易度</h2>
+
+      <div className="bg-slate-800 rounded-2xl p-4 border border-slate-700 text-sm text-slate-300 space-y-3 leading-relaxed">
+        <p>
+          <strong className="text-slate-100">初級編</strong> — レンジ表を見ながら、AKs・AA・オフスート全体
+          などのコンボ数を答える基礎トレーニング。
+        </p>
+        <p>
+          <strong className="text-slate-100">中級編</strong> — ボードと自分のハンドを見て、デッドカードを
+          除いたコンボ数をカウントする実戦練習。
+        </p>
+        <p>
+          <strong className="text-slate-100">上級編</strong> — 相手のレンジ表とボードを見て、自分が
+          何コンボに負けて（勝って）いるかをカウントする総合演習。
+        </p>
+      </div>
 
       <h2 className="text-xl font-bold mt-10 mb-4">コンボ表</h2>
 
@@ -61,10 +78,10 @@ export default function HowToPage() {
 
       <div className="mt-10 pb-4">
         <button
-          onClick={() => navigate('/play')}
+          onClick={() => navigate('/')}
           className="w-full bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 font-bold text-lg rounded-2xl py-4 transition-all touch-manipulation"
         >
-          スタート
+          難易度を選んでスタート
         </button>
       </div>
     </div>

@@ -1,61 +1,52 @@
 import { useNavigate, Link } from 'react-router-dom';
-import { loadBestScore } from '../lib/bestScore';
-import { getLevelType } from '../config/gameConfig';
-import { LEVEL_TYPE_LABEL } from '../config/uiConfig';
-
-// デバッグボタンで開始できるレベル一覧
-const DEBUG_LEVELS = [1, 2, 3, 4, 5];
+import { loadBestScores } from '../lib/bestScore';
+import { DIFFICULTIES, DIFFICULTY_CONFIG } from '../config/gameConfig';
 
 export default function TopPage() {
   const navigate = useNavigate();
-  const best = loadBestScore();
-
-  const formattedDate = best
-    ? new Date(best.date).toLocaleDateString('ja-JP', {
-        year: 'numeric',
-        month: 'numeric',
-        day: 'numeric',
-      })
-    : null;
+  const bests = loadBestScores();
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50 flex flex-col items-center justify-between px-4 py-10">
-      {/* Title block */}
+      {/* タイトルブロック */}
       <div className="text-center mt-6">
         <p className="text-3xl tracking-widest text-emerald-400 mb-2">♠ ♥ ♦ ♣</p>
         <h1 className="text-3xl font-bold tracking-tight">コンボカウントドリル</h1>
         <p className="text-slate-400 text-sm mt-2">ポーカーのコンボ数を瞬時に数える力を鍛えよう</p>
       </div>
 
-      {/* Best score card */}
-      <div className="w-full my-8">
-        {best ? (
-          <div className="bg-slate-800 rounded-2xl p-5 text-center border border-slate-700">
-            <p className="text-slate-400 text-xs uppercase tracking-widest mb-1">自己ベスト</p>
-            <p className="text-6xl font-bold text-emerald-400">{best.score}</p>
-            <p className="text-slate-300 text-sm mt-1">連続正解</p>
-            <div className="flex justify-center gap-4 mt-3 text-slate-400 text-xs">
-              <span>Lv.{best.level} 到達</span>
-              <span>{formattedDate}</span>
-            </div>
-          </div>
-        ) : (
-          <div className="bg-slate-900 rounded-2xl p-5 text-center border border-slate-800">
-            <p className="text-slate-400 text-sm">まずは1問目に挑戦！</p>
-            <p className="text-slate-500 text-xs mt-1">記録は端末に保存されます</p>
-          </div>
-        )}
+      {/* 難易度選択ボタン */}
+      <div className="w-full my-8 space-y-3">
+        {DIFFICULTIES.map(difficulty => {
+          const cfg = DIFFICULTY_CONFIG[difficulty];
+          const best = bests[difficulty];
+          return (
+            <button
+              key={difficulty}
+              onClick={() => navigate(`/play/${difficulty}`)}
+              className="w-full bg-slate-800 hover:bg-slate-700 active:scale-[0.98] border border-slate-700 rounded-2xl px-5 py-4 flex items-center justify-between transition-all touch-manipulation text-left"
+            >
+              <div>
+                <p className="text-lg font-bold text-slate-50">{cfg.label}</p>
+                <p className="text-slate-400 text-xs mt-0.5">{cfg.description}</p>
+              </div>
+              <div className="text-right shrink-0 pl-3">
+                {best ? (
+                  <>
+                    <p className="text-2xl font-bold text-emerald-400 tabular-nums">{best.score}</p>
+                    <p className="text-slate-500 text-[10px]">自己ベスト</p>
+                  </>
+                ) : (
+                  <p className="text-slate-500 text-xs">記録なし</p>
+                )}
+              </div>
+            </button>
+          );
+        })}
       </div>
 
-      {/* Start button + links */}
+      {/* リンクと注記 */}
       <div className="w-full space-y-4">
-        <button
-          onClick={() => navigate('/play')}
-          className="w-full bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 font-bold text-xl rounded-2xl py-5 transition-all touch-manipulation"
-        >
-          スタート
-        </button>
-
         <div className="text-center">
           <Link
             to="/howto"
@@ -79,27 +70,6 @@ export default function TopPage() {
         <p className="text-center text-slate-600 text-xs">
           不正解・時間切れでゲームオーバー
         </p>
-
-        {/* デバッグ用: 任意レベルから開始（開発時のみ表示。Lv2以上は自己ベスト非記録） */}
-        {import.meta.env.DEV && (
-          <div className="pt-2 border-t border-slate-800">
-            <p className="text-center text-slate-600 text-xs mb-2">デバッグ: レベル指定で開始</p>
-            <div className="grid grid-cols-5 gap-2">
-              {DEBUG_LEVELS.map(lv => (
-                <button
-                  key={lv}
-                  onClick={() => navigate('/play', { state: { debugStartLevel: lv } })}
-                  className="bg-slate-900 hover:bg-slate-800 active:scale-95 border border-slate-700 rounded-lg py-2 transition-all touch-manipulation"
-                >
-                  <span className="block text-slate-300 text-sm font-bold">Lv.{lv}</span>
-                  <span className="block text-slate-500 text-[10px]">
-                    {LEVEL_TYPE_LABEL[getLevelType(lv)]}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

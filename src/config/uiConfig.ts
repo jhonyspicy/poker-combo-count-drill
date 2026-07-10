@@ -1,5 +1,4 @@
 import type { Suit } from '../lib/comboCalculator';
-import type { QuestionType } from './gameConfig';
 
 // 4色デッキ（true: スートごとに4色 / false: 赤黒の2色）
 export const FOUR_COLOR_DECK = true;
@@ -30,19 +29,13 @@ export const FELT_COLORS = {
   dark: '#134a31',
 };
 
-// 問題タイプの表示名
-export const LEVEL_TYPE_LABEL: Record<QuestionType, string> = {
-  simple: '基礎',
-  range: 'レンジ表',
-  flop: 'フロップ',
-  turn: 'ターン',
-  river: 'リバー',
-};
-
-// レンジ表グリッドの配色
+// レンジ表パネルの配色
 export const RANGE_GRID_COLORS = {
   highlightBg: '#f5b83d', // 出題エリアのセル
   highlightFg: '#241a04',
   cellBg: '#1a2338', // エリア外のセル
   cellFg: '#5a668a',
+  panelBg: '#111a2e', // パネルの背景
+  panelBorder: '#263252', // パネルの枠線
+  headerFg: '#7d8aa8', // 見出し・凡例の文字色
 };

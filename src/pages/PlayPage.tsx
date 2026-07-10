@@ -1,64 +1,50 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { generateQuestion, generateAllSimpleQuestions } from '../lib/questions';
+import { useNavigate, useParams, Navigate } from 'react-router-dom';
+import { generateQuestion } from '../lib/questions';
 import type { Question } from '../lib/questions';
-import { getTimeLimitSec, getLevelType, MASTERY_STREAK } from '../config/gameConfig';
+import type { Difficulty } from '../config/gameConfig';
+import { DIFFICULTY_CONFIG, getTimeLimitSec, isDifficulty } from '../config/gameConfig';
 import { tryUpdateBestScore } from '../lib/bestScore';
-import { FELT_COLORS, LEVEL_TYPE_LABEL } from '../config/uiConfig';
-import PlayingCard from '../components/PlayingCard';
 import RangeGrid from '../components/RangeGrid';
-
-function initQState(firstQuestion: Question, level: number) {
-  return {
-    question: firstQuestion,
-    timeLimitMs: getTimeLimitSec(firstQuestion.type, level) * 1000,
-  };
-}
+import FeltStrip from '../components/FeltStrip';
 
 // 不正解時にフィードバックを見せてからリザルトへ遷移するまでの時間
 const WRONG_FEEDBACK_MS = 1400;
 // 正解時に「正解！」を表示しておく時間（進行は止めない）
 const CORRECT_FLASH_MS = 700;
 
+// ルートパラメータの難易度を検証してからゲーム本体をマウントする
 export default function PlayPage() {
+  const { difficulty } = useParams();
+  if (!isDifficulty(difficulty)) return <Navigate to="/" replace />;
+  // 難易度が変わったらゲームを最初から作り直す
+  return <PlayGame key={difficulty} difficulty={difficulty} />;
+}
+
+function questionTimeLimitMs(difficulty: Difficulty, question: Question, streak: number): number {
+  return getTimeLimitSec(difficulty, question.street ?? null, streak) * 1000;
+}
+
+function PlayGame({ difficulty }: { difficulty: Difficulty }) {
   const navigate = useNavigate();
-  const location = useLocation();
-
-  // デバッグ開始レベル（トップページのデバッグボタンから渡される。通常遷移は指定なし → Lv1）
-  const startLevel =
-    (location.state as { debugStartLevel?: number } | null)?.debugStartLevel ?? 1;
-  // Lv2以上からのデバッグ開始ランは自己ベストを記録しない
-  const isDebugRun = startLevel >= 2;
-
-  // Lv1用: ゲーム開始時に全単純問題をシャッフルして保持（以降変更しない）
-  const [simpleQueue] = useState<Question[]>(() => generateAllSimpleQuestions());
-  // 初回問題: Lv1開始はキューの先頭、Lv2以上のデバッグ開始は動的生成
-  const [firstQuestion] = useState<Question>(() =>
-    startLevel === 1 ? simpleQueue[0] : generateQuestion(startLevel)
-  );
 
   const [score, setScore] = useState(0);
-  const [level, setLevel] = useState(startLevel);
-  // レベル内の正解数（レベルアップ時に0にリセット）
-  const [progressInLevel, setProgressInLevel] = useState(0);
-  const [{ question, timeLimitMs }, setQState] = useState(() =>
-    initQState(firstQuestion, startLevel)
-  );
+  const [{ question, timeLimitMs }, setQState] = useState(() => {
+    const first = generateQuestion(difficulty);
+    return { question: first, timeLimitMs: questionTimeLimitMs(difficulty, first, 0) };
+  });
   const [timerKey, setTimerKey] = useState(0);
-  const [timeLeftMs, setTimeLeftMs] = useState(() =>
-    getTimeLimitSec(firstQuestion.type, startLevel) * 1000
-  );
-  const [levelUpVisible, setLevelUpVisible] = useState(false);
+  const [timeLeftMs, setTimeLeftMs] = useState(timeLimitMs);
   // 不正解時に選んだ選択肢の位置（null = 未回答）
   const [wrongPick, setWrongPick] = useState<number | null>(null);
   // 正解直後の「正解！」表示フラグ
   const [correctFlash, setCorrectFlash] = useState(false);
 
-  // Refs so the timer interval can read latest values without re-running the effect
-  const stateRef = useRef({ score, level, question });
+  // タイマーのインターバルから最新値を読むための ref（effect の再実行を避ける）
+  const stateRef = useRef({ score, question });
   useEffect(() => {
-    stateRef.current = { score, level, question };
-  }, [score, level, question]);
+    stateRef.current = { score, question };
+  }, [score, question]);
 
   // 不正解表示中はタイマーを止めるためのフラグ
   const frozenRef = useRef(false);
@@ -72,16 +58,16 @@ export default function PlayPage() {
       const remaining = timeLimitMs - (Date.now() - startTime);
       if (remaining <= 0) {
         clearInterval(id);
-        const { score: s, level: l, question: q } = stateRef.current;
-        const isNewBest = isDebugRun ? false : tryUpdateBestScore(s, l);
-        navigate('/result', { state: { score: s, level: l, question: q, isNewBest } });
+        const { score: s, question: q } = stateRef.current;
+        const isNewBest = tryUpdateBestScore(difficulty, s);
+        navigate('/result', { state: { score: s, difficulty, question: q, isNewBest } });
       } else {
         setTimeLeftMs(remaining);
       }
     }, 50);
 
     return () => clearInterval(id);
-  }, [timerKey, timeLimitMs, navigate, isDebugRun]);
+  }, [timerKey, timeLimitMs, navigate, difficulty]);
 
   // アンマウント時に残っているタイムアウトを掃除
   useEffect(() => {
@@ -97,57 +83,32 @@ export default function PlayPage() {
       // 不正解: タイマーを止めて正解をハイライトし、少し見せてからリザルトへ
       frozenRef.current = true;
       setWrongPick(index);
-      const isNewBest = isDebugRun ? false : tryUpdateBestScore(score, level);
+      const isNewBest = tryUpdateBestScore(difficulty, score);
       setTimeout(() => {
-        navigate('/result', { state: { score, level, question, isNewBest } });
+        navigate('/result', { state: { score, difficulty, question, isNewBest } });
       }, WRONG_FEEDBACK_MS);
       return;
     }
 
+    // 正解: スコアを伸ばし、短くなった制限時間で次の問題へ
     const newScore = score + 1;
-    const newProgress = progressInLevel + 1;
+    const nextQ = generateQuestion(difficulty);
+    const nextTimeLimitMs = questionTimeLimitMs(difficulty, nextQ, newScore);
 
-    // Lv1: SIMPLE_POOL 全問正解でクリア、Lv2以降: MASTERY_STREAK 連続正解でレベルアップ
-    const masteryRequired = level === 1 ? simpleQueue.length : MASTERY_STREAK;
-    const isLevelClear = newProgress >= masteryRequired;
-
-    const nextLevel = isLevelClear ? level + 1 : level;
-    const nextProgress = isLevelClear ? 0 : newProgress;
-
-    // 次の問題を取得
-    let nextQ: Question;
-    if (nextLevel === 1) {
-      // Lv1中はキューの次の問題を順番に取り出す
-      nextQ = simpleQueue[nextProgress];
-    } else {
-      nextQ = generateQuestion(nextLevel);
-    }
-
-    const nextTimeLimitMs = getTimeLimitSec(nextQ.type, nextLevel) * 1000;
-
-    if (isLevelClear) {
-      setLevel(nextLevel);
-      setLevelUpVisible(true);
-      setTimeout(() => setLevelUpVisible(false), 1500);
-    }
     // 「正解！」を出しつつ即座に次の問題へ進む
     setCorrectFlash(true);
     if (correctFlashTimeout.current) clearTimeout(correctFlashTimeout.current);
     correctFlashTimeout.current = setTimeout(() => setCorrectFlash(false), CORRECT_FLASH_MS);
 
     setScore(newScore);
-    setProgressInLevel(nextProgress);
     setQState({ question: nextQ, timeLimitMs: nextTimeLimitMs });
     setTimeLeftMs(nextTimeLimitMs);
     setTimerKey(k => k + 1);
   }
 
-  const masteryRequired = level === 1 ? simpleQueue.length : MASTERY_STREAK;
   const progress = Math.max(0, timeLeftMs / timeLimitMs);
   // 残り時間が少なくなるとバーの色で警告する
   const timerColor = progress > 0.5 ? '#f5b83d' : progress > 0.25 ? '#fb923c' : '#ef4444';
-
-  const currentTypeLabel = LEVEL_TYPE_LABEL[getLevelType(level)];
 
   const answered = wrongPick !== null;
   const feedbackText = answered
@@ -157,33 +118,22 @@ export default function PlayPage() {
       : '';
   const feedbackColor = answered ? '#f87171' : '#4ade80';
 
+  // 3要素同時表示（上級）ではレンジ表を小さめにして1画面に収める
+  const hasBoard = !!(question.board && question.hero);
+  const rangeGridWidth = hasBoard ? 290 : 360;
+
   return (
     <div
       className="min-h-dvh flex justify-center"
       style={{ background: '#0a0f1e', fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}
     >
       <div
-        className="w-full max-w-107.5 min-h-dvh flex flex-col relative"
+        className="w-full max-w-107.5 min-h-dvh flex flex-col"
         style={{ color: '#eef1f8' }}
       >
-        {/* レベルアップオーバーレイ */}
-        {levelUpVisible && (
-          <div className="absolute inset-0 flex items-center justify-center bg-[#0a0f1e]/80 z-20 pointer-events-none">
-            <div className="text-center">
-              <p className="text-5xl font-bold" style={{ color: '#f5b83d' }}>Level Up!</p>
-              <p className="text-2xl mt-2 text-slate-300">Lv.{level}</p>
-            </div>
-          </div>
-        )}
-
         {/* ヘッダー */}
         <div className="flex items-center justify-between px-4.5 pt-3.5 pb-2.5">
-          <div className="flex flex-col gap-0.5">
-            <div className="text-[15px] font-bold">Lv.{level} {currentTypeLabel}</div>
-            <div className="text-xs" style={{ color: '#7d8aa8' }}>
-              {progressInLevel}/{masteryRequired}
-            </div>
-          </div>
+          <div className="text-[15px] font-bold">{DIFFICULTY_CONFIG[difficulty].label}</div>
           <div className="text-base font-bold">{score} 連続正解</div>
         </div>
 
@@ -199,99 +149,20 @@ export default function PlayPage() {
           />
         </div>
 
-        {question.rangeCells ? (
-          /* レンジ表問題: グリッドと問題文を表示（フェルトは使わない） */
-          <div className="flex-1 flex flex-col justify-center px-4 pt-2.5">
-            <RangeGrid cells={question.rangeCells} />
-            <div className="text-center text-[17px] font-bold leading-normal whitespace-pre-line px-1 pt-3.5">
-              {question.text}
-            </div>
-            <div className="text-center text-xs pt-1" style={{ color: '#7d8aa8' }}>
-              ハイライトされたエリアのコンボ数は？
-            </div>
-          </div>
-        ) : (
-        /* ポーカーテーブル */
-        <div className="flex-1 flex flex-col justify-center px-3.5 pt-2.5">
-          <div
-            className="relative flex flex-col items-center gap-5.5 px-4 pt-8.5 pb-6.5"
-            style={{
-              borderRadius: '46% / 40%',
-              background: `radial-gradient(ellipse at 50% 32%, ${FELT_COLORS.light} 0%, ${FELT_COLORS.base} 62%, ${FELT_COLORS.dark} 100%)`,
-              border: '7px solid #3a2a1c',
-              boxShadow:
-                '0 0 0 2px #59422c, 0 14px 30px rgba(0,0,0,0.55), inset 0 3px 18px rgba(0,0,0,0.45)',
-            }}
-          >
-            {question.board ? (
-              <>
-                {/* ボード */}
-                <div className="flex flex-col items-center gap-2">
-                  <div
-                    className="text-[11px] font-bold tracking-[0.18em]"
-                    style={{ color: 'rgba(255,255,255,0.55)' }}
-                  >
-                    ボード
-                  </div>
-                  <div className="flex gap-2">
-                    {question.board.map(card => (
-                      <PlayingCard key={`${card.rank}${card.suit}`} card={card} variant="board" />
-                    ))}
-                  </div>
-                </div>
+        {/* 問題要素（レンジ表 / ボード＋自分のハンド / 文章）の出し分け */}
+        <div className="flex-1 flex flex-col justify-center gap-3 px-4 pt-2">
+          {question.rangeCells && (
+            <RangeGrid
+              cells={question.rangeCells}
+              label={question.rangeLabel ?? 'レンジ表'}
+              maxWidthPx={rangeGridWidth}
+            />
+          )}
 
-                {/* フェルト上の問題文 */}
-                <div
-                  className="text-center text-base font-semibold px-2"
-                  style={{
-                    color: 'rgba(255,255,255,0.92)',
-                    textShadow: '0 1px 3px rgba(0,0,0,0.4)',
-                  }}
-                >
-                  相手が{' '}
-                  <span className="font-extrabold" style={{ color: '#ffd166' }}>
-                    {question.handLabel}
-                  </span>{' '}
-                  を持っているコンボ数は？
-                </div>
+          {hasBoard && <FeltStrip board={question.board!} hero={question.hero!} />}
 
-                {/* 自分のハンド */}
-                {question.hero && (
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="flex">
-                      {question.hero.map((card, i) => (
-                        <PlayingCard
-                          key={`${card.rank}${card.suit}`}
-                          card={card}
-                          variant="hero"
-                          tiltDeg={i === 0 ? -5 : 5}
-                        />
-                      ))}
-                    </div>
-                    <div
-                      className="text-[11px] font-bold tracking-[0.18em]"
-                      style={{ color: 'rgba(255,255,255,0.55)' }}
-                    >
-                      あなたのハンド
-                    </div>
-                  </div>
-                )}
-              </>
-            ) : (
-              /* 単純問題（Lv1）はカードなしで問題文のみ表示 */
-              <div
-                className="text-center text-base font-semibold leading-relaxed whitespace-pre-line px-2 py-8"
-                style={{
-                  color: 'rgba(255,255,255,0.92)',
-                  textShadow: '0 1px 3px rgba(0,0,0,0.4)',
-                }}
-              >
-                {question.text}
-              </div>
-            )}
-          </div>
+          <QuestionText question={question} />
         </div>
-        )}
 
         {/* フィードバック */}
         <div
@@ -324,7 +195,7 @@ export default function PlayPage() {
                 key={choice}
                 onClick={() => handleChoice(choice, i)}
                 disabled={answered}
-                className="h-16 rounded-xl text-[22px] font-bold active:scale-[0.97] touch-manipulation"
+                className="h-15 rounded-xl text-[22px] font-bold active:scale-[0.97] touch-manipulation"
                 style={{
                   background: bg,
                   border: `1px solid ${border}`,
@@ -338,6 +209,46 @@ export default function PlayPage() {
           })}
         </div>
       </div>
+    </div>
+  );
+}
+
+// 問題タイプに応じた問題文の描画（キーワードを金色で強調する）
+function QuestionText({ question }: { question: Question }) {
+  const baseClass = 'text-center text-[14.5px] font-semibold leading-relaxed px-1';
+  const baseStyle = { color: '#d7ddec' };
+  const gold = { color: '#ffd166' };
+
+  if (question.type === 'board-count') {
+    return (
+      <div className={baseClass} style={baseStyle}>
+        相手が{' '}
+        <span className="font-extrabold text-base" style={gold}>
+          {question.handLabel}
+        </span>{' '}
+        を持っているコンボ数は？
+      </div>
+    );
+  }
+
+  if (question.type === 'range-vs-board') {
+    const verb = question.advancedKind === 'lose' ? '負けています' : '勝っています';
+    return (
+      <div className={baseClass} style={baseStyle}>
+        相手のレンジがレンジ表の通りだとします。
+        上記のボードとハンドのとき、あなたは
+        <span className="font-extrabold" style={gold}>
+          何コンボに{verb}
+        </span>
+        か？
+      </div>
+    );
+  }
+
+  // 初級はパターンのラベルをそのまま表示する
+  return (
+    <div className={`${baseClass} whitespace-pre-line text-[17px] font-bold`} style={baseStyle}>
+      {question.text}
     </div>
   );
 }

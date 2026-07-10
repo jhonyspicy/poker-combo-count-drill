@@ -1,7 +1,4 @@
-## Purpose
-ゲーム中のセッションスコアをリアルタイムで管理し、自己ベストを難易度ごとに localStorage へ永続化・表示する。
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: セッションスコア管理
 ゲーム中の連続正解数をリアルタイムで管理する SHALL。レベルの概念は持たない。

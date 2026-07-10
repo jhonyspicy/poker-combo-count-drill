@@ -4,6 +4,7 @@ import {
   buildRangeQuestionData,
   cellCombos,
   cellLabel,
+  pickSingleHandPattern,
 } from '../rangeQuestions';
 
 describe('rangeQuestions', () => {
@@ -43,6 +44,7 @@ describe('rangeQuestions', () => {
     'adjacent-suited': 48, // AKs〜32s の12ハンド × 4
     'ace-hands': 198, // AA(6) + Axs 12タイプ×4 + Axo 12タイプ×12
     'suited-connectors': 20, // 98s〜54s の5ハンド × 4
+    all: 1326, // 全ハンド = 総コンボ数
   };
 
   it.each(RANGE_PATTERNS.map(p => [p.id, p] as const))(
@@ -60,6 +62,16 @@ describe('rangeQuestions', () => {
       expect(sum).toBe(data.answer);
     }
   );
+
+  it('単一ハンドパターンの答えは 4 / 6 / 12 / 16 のいずれか', () => {
+    for (let n = 0; n < 50; n++) {
+      const data = buildRangeQuestionData(pickSingleHandPattern());
+      expect([4, 6, 12, 16]).toContain(data.answer);
+      // ハイライトはペア/スーテッド/オフスートで1セル、合計（s+o）で2セル
+      const hitCount = data.cells.filter(c => c.hit).length;
+      expect([1, 2]).toContain(hitCount);
+    }
+  });
 
   it('スーテッドコネクターのエリアは 98s〜54s のみ', () => {
     const pattern = RANGE_PATTERNS.find(p => p.id === 'suited-connectors')!;

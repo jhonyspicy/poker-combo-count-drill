@@ -53,7 +53,63 @@ export const RANGE_PATTERNS: RangePattern[] = [
     label: 'スーテッドコネクター（98s〜54s）は\n何コンボ？',
     test: (i, j) => j === i + 1 && i >= 5 && i <= 9,
   },
+  {
+    id: 'all',
+    label: '全ハンドの合計（総コンボ数）は\nいくつ？',
+    test: () => true,
+  },
 ];
+
+// ---- 単一ハンド問題（ランクをランダムに選んで1〜2セルを問う） ----
+
+// 単一ハンド問題の答えは 4 / 6 / 12 / 16 のいずれかになるため、
+// 誤答は近傍値ではなくこれらの取り違えから作る（questions.ts 側で参照）
+export const HAND_TYPE_ANSWERS = [4, 6, 12, 16];
+
+function randomInt(n: number): number {
+  return Math.floor(Math.random() * n);
+}
+
+// ペア / スーテッド / オフスート / 合計（s+o）のいずれかをランダムなランクで生成する
+export function pickSingleHandPattern(): RangePattern {
+  const kind = (['pair', 'suited', 'offsuit', 'combined'] as const)[randomInt(4)];
+
+  if (kind === 'pair') {
+    const i = randomInt(13);
+    const r = GRID_RANKS[i];
+    return {
+      id: `single-pair-${r}`,
+      label: `${r}${r} は何コンボ？`,
+      test: (a, b) => a === i && b === i,
+    };
+  }
+
+  // 非ペア: i < j となる2ランクを選ぶ（i が高いランク）
+  const i = randomInt(12);
+  const j = i + 1 + randomInt(12 - i);
+  const r1 = GRID_RANKS[i];
+  const r2 = GRID_RANKS[j];
+
+  if (kind === 'suited') {
+    return {
+      id: `single-suited-${r1}${r2}`,
+      label: `${r1}${r2}s は何コンボ？`,
+      test: (a, b) => a === i && b === j,
+    };
+  }
+  if (kind === 'offsuit') {
+    return {
+      id: `single-offsuit-${r1}${r2}`,
+      label: `${r1}${r2}o は何コンボ？`,
+      test: (a, b) => a === j && b === i,
+    };
+  }
+  return {
+    id: `single-combined-${r1}${r2}`,
+    label: `${r1}${r2}（スーテッド＋オフスート合計）は\n何コンボ？`,
+    test: (a, b) => (a === i && b === j) || (a === j && b === i),
+  };
+}
 
 // セル1マスのコンボ数（対角=ペア6 / 右上=スーテッド4 / 左下=オフスート12）
 export function cellCombos(i: number, j: number): number {

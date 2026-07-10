@@ -8,7 +8,8 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<TopPage />} />
-      <Route path="/play" element={<PlayPage />} />
+      {/* 難易度はルートパラメータで受け取る（不正な値は PlayPage 側でトップへリダイレクト） */}
+      <Route path="/play/:difficulty" element={<PlayPage />} />
       <Route path="/result" element={<ResultPage />} />
       <Route path="/howto" element={<HowToPage />} />
       <Route path="*" element={<Navigate replace to="/" />} />

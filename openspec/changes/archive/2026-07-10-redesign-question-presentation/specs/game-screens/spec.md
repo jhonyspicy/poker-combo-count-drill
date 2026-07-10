@@ -1,7 +1,4 @@
-## Purpose
-アプリの画面構成・ルーティング・各画面の表示要件を定義する。
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: 4画面ルーティング
 HashRouter により `/`（トップ）、`/play/:difficulty`（プレイ）、`/result`（リザルト）、`/howto`（遊び方）の4ルートを提供する SHALL。`:difficulty` は `beginner` / `intermediate` / `advanced` のいずれかとし、不正な値はトップへリダイレクトする SHALL。
@@ -85,14 +82,3 @@ HashRouter により `/`（トップ）、`/play/:difficulty`（プレイ）、`
 #### Scenario: 遊び方へのアクセス
 - **WHEN** ユーザーが遊び方リンクをタップする
 - **THEN** 遊び方画面が表示され、3難易度それぞれの出題内容が説明されている
-
-### Requirement: フルワイドレイアウト
-全4画面のタイマーバーはデバイスの画面幅いっぱいに表示する SHALL。コンテンツエリア（テキスト・ボタン等）には左右に `px-4` 相当の内側余白を設ける。
-
-#### Scenario: タイマーバーが全幅で表示される
-- **WHEN** スマホでプレイ画面を表示する
-- **THEN** タイマーバーがデバイス幅いっぱいに広がり、左右に余白が生じない
-
-#### Scenario: コンテンツエリアに余白がある
-- **WHEN** スマホでいずれかの画面を表示する
-- **THEN** テキスト・ボタン等のコンテンツは画面端から `px-4` 分の余白を持って表示される
