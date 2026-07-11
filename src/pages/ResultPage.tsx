@@ -25,7 +25,7 @@ export default function ResultPage() {
   const best = loadBestScores()[difficulty];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 flex flex-col items-center px-4 py-10">
+    <div className="min-h-dvh bg-slate-950 text-slate-50 flex flex-col items-center px-4 py-10">
       {/* スコア */}
       <div className="text-center mt-6 w-full">
         <p className="text-slate-400 text-sm uppercase tracking-widest">

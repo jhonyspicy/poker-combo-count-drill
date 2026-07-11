@@ -4,7 +4,7 @@ export default function HowToPage() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 flex flex-col px-4 py-8">
+    <div className="min-h-dvh bg-slate-950 text-slate-50 flex flex-col px-4 py-8">
       <button
         onClick={() => navigate(-1)}
         className="text-slate-400 text-sm mb-6 text-left"
