@@ -41,9 +41,7 @@ describe('rangeQuestions', () => {
     offsuit: 936, // 78タイプ × 12
     pairs: 78, // 13ランク × 6
     'broadway-pairs': 30, // AA〜TT の5ランク × 6
-    'adjacent-suited': 48, // AKs〜32s の12ハンド × 4
     'ace-hands': 198, // AA(6) + Axs 12タイプ×4 + Axo 12タイプ×12
-    'suited-connectors': 20, // 98s〜54s の5ハンド × 4
     all: 1326, // 全ハンド = 総コンボ数
   };
 
@@ -73,10 +71,4 @@ describe('rangeQuestions', () => {
     }
   });
 
-  it('スーテッドコネクターのエリアは 98s〜54s のみ', () => {
-    const pattern = RANGE_PATTERNS.find(p => p.id === 'suited-connectors')!;
-    const data = buildRangeQuestionData(pattern);
-    const hitLabels = data.cells.filter(c => c.hit).map(c => c.label);
-    expect(hitLabels.sort()).toEqual(['54s', '65s', '76s', '87s', '98s'].sort());
-  });
 });

@@ -39,19 +39,9 @@ export const RANGE_PATTERNS: RangePattern[] = [
     test: (i, j) => i === j && i <= 4,
   },
   {
-    id: 'adjacent-suited',
-    label: '隣接ランクのスーテッドは何コンボ？\n（AKs・KQs・QJs…32s）',
-    test: (i, j) => j === i + 1,
-  },
-  {
     id: 'ace-hands',
     label: 'Aを含むハンドは全部で何コンボ？\n（AA・AKs・AKo など）',
     test: (i, j) => i === 0 || j === 0,
-  },
-  {
-    id: 'suited-connectors',
-    label: 'スーテッドコネクター（98s〜54s）は\n何コンボ？',
-    test: (i, j) => j === i + 1 && i >= 5 && i <= 9,
   },
   {
     id: 'all',
