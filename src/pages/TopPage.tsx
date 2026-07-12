@@ -7,7 +7,7 @@ export default function TopPage() {
   const bests = loadBestScores();
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 flex flex-col items-center justify-between px-4 py-10">
+    <div className="min-h-dvh bg-slate-950 text-slate-50 flex flex-col items-center justify-between px-4 py-10">
       {/* タイトルブロック */}
       <div className="text-center mt-6">
         <p className="text-3xl tracking-widest text-emerald-400 mb-2">♠ ♥ ♦ ♣</p>
