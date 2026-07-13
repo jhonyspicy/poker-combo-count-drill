@@ -53,11 +53,28 @@ describe('グリッド座標への展開', () => {
   });
 
   it('presetToGridTest はレンジ内のセルだけ真を返す', () => {
-    const test = presetToGridTest(PRESET_RANGES[0]); // tight-open
+    const test = presetToGridTest(PRESET_RANGES[0]); // open-range
     expect(test(0, 0)).toBe(true); // AA
     expect(test(0, 12)).toBe(true); // A2s
     expect(test(12, 0)).toBe(false); // A2o はレンジ外
     expect(test(12, 12)).toBe(false); // 22 はレンジ外
+  });
+
+  it('境界セルの in/out が画像のレンジと一致する', () => {
+    const test = presetToGridTest(PRESET_RANGES[0]); // open-range
+    // GRID_RANKS: A=0, K=1, Q=2, J=3, T=4, 9=5, 8=6, 7=7, 6=8, 5=9, 4=10
+    expect(test(1, 9)).toBe(true); // K5s
+    expect(test(1, 10)).toBe(false); // K4s はレンジ外
+    expect(test(2, 5)).toBe(true); // Q9s
+    expect(test(2, 6)).toBe(false); // Q8s はレンジ外
+    expect(test(3, 4)).toBe(true); // JTs
+    expect(test(3, 5)).toBe(false); // J9s はレンジ外
+    expect(test(4, 0)).toBe(true); // ATo
+    expect(test(4, 1)).toBe(false); // KTo はレンジ外
+    expect(test(3, 1)).toBe(true); // KJo
+    expect(test(3, 2)).toBe(false); // QJo はレンジ外
+    expect(test(7, 7)).toBe(true); // 77
+    expect(test(8, 8)).toBe(false); // 66 はレンジ外
   });
 });
 
@@ -72,9 +89,9 @@ describe('コンボ数計算（デッドカードなし）', () => {
     }
   });
 
-  it('タイトなオープンレンジは 236 コンボ', () => {
-    // ペア10×6 + Axs12×4 + Axo4×12 + BWs6×4 + BWo3×12 + SC5×4 = 236
-    expect(presetComboCount(PRESET_RANGES[0], [])).toBe(236);
+  it('オープンレンジは 216 コンボ', () => {
+    // ペア8×6 + スーテッド24×4 + オフスート6×12 = 216
+    expect(presetComboCount(PRESET_RANGES[0], [])).toBe(216);
   });
 });
 

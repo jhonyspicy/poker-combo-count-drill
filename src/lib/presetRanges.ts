@@ -15,45 +15,23 @@ export interface PresetRange {
 
 export const PRESET_RANGES: PresetRange[] = [
   {
-    id: 'tight-open',
-    name: 'タイトなオープンレンジ',
+    id: 'open-range',
+    name: 'オープンレンジ',
     hands: [
-      // ペア 55+
-      'AA', 'KK', 'QQ', 'JJ', 'TT', '99', '88', '77', '66', '55',
+      // ペア 77+
+      'AA', 'KK', 'QQ', 'JJ', 'TT', '99', '88', '77',
       // Ax スーテッド全部
       'AKs', 'AQs', 'AJs', 'ATs', 'A9s', 'A8s', 'A7s', 'A6s', 'A5s', 'A4s', 'A3s', 'A2s',
-      // 大きい Ax オフスート
+      // Kx スーテッド K5s+
+      'KQs', 'KJs', 'KTs', 'K9s', 'K8s', 'K7s', 'K6s', 'K5s',
+      // Qx スーテッド Q9s+
+      'QJs', 'QTs', 'Q9s',
+      // Jx スーテッド
+      'JTs',
+      // Ax オフスート ATo+
       'AKo', 'AQo', 'AJo', 'ATo',
-      // ブロードウェイのスーテッド
-      'KQs', 'KJs', 'KTs', 'QJs', 'QTs', 'JTs',
-      // ブロードウェイのオフスート
-      'KQo', 'KJo', 'QJo',
-      // スーテッドコネクター
-      '98s', '87s', '76s', '65s', '54s',
-    ],
-  },
-  {
-    id: 'broadway',
-    name: 'ブロードウェイ中心のレンジ',
-    hands: [
-      // ペア TT+
-      'AA', 'KK', 'QQ', 'JJ', 'TT',
-      // ブロードウェイ同士のスーテッド
-      'AKs', 'AQs', 'AJs', 'ATs', 'KQs', 'KJs', 'KTs', 'QJs', 'QTs', 'JTs',
-      // ブロードウェイ同士のオフスート
-      'AKo', 'AQo', 'AJo', 'ATo', 'KQo', 'KJo', 'KTo', 'QJo', 'QTo', 'JTo',
-    ],
-  },
-  {
-    id: 'suited-connectors',
-    name: 'スーテッド中心のコールレンジ',
-    hands: [
-      // 中〜小ペア
-      '22', '33', '44', '55', '66', '77', '88', '99', 'TT',
-      // スーテッドコネクター全部
-      'AKs', 'KQs', 'QJs', 'JTs', 'T9s', '98s', '87s', '76s', '65s', '54s', '43s', '32s',
-      // スーテッド1ギャッパー全部
-      'AQs', 'KJs', 'QTs', 'J9s', 'T8s', '97s', '86s', '75s', '64s', '53s', '42s',
+      // Kx オフスート KJo+
+      'KQo', 'KJo',
     ],
   },
 ];
