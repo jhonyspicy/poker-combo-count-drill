@@ -34,6 +34,24 @@ export const PRESET_RANGES: PresetRange[] = [
       'KQo', 'KJo',
     ],
   },
+  {
+    id: 'call-range',
+    name: 'コールレンジ',
+    hands: [
+      // ペア TT-44
+      'TT', '99', '88', '77', '66', '55', '44',
+      // Ax スーテッド AQs-A7s, A5s-A4s
+      'AQs', 'AJs', 'ATs', 'A9s', 'A8s', 'A7s', 'A5s', 'A4s',
+      // Kx スーテッド K9s+
+      'KQs', 'KJs', 'KTs', 'K9s',
+      // Qx スーテッド QTs+
+      'QJs', 'QTs',
+      // Jx / Tx スーテッド
+      'JTs', 'T9s',
+      // オフスート
+      'AJo',
+    ],
+  },
 ];
 
 export function pickPresetRange(): PresetRange {

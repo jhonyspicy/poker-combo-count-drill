@@ -60,6 +60,35 @@ describe('グリッド座標への展開', () => {
     expect(test(12, 12)).toBe(false); // 22 はレンジ外
   });
 
+  it('コールレンジの境界セルの in/out が画像のレンジと一致する', () => {
+    const preset = PRESET_RANGES.find(p => p.id === 'call-range')!;
+    const test = presetToGridTest(preset);
+    // GRID_RANKS: A=0, K=1, Q=2, J=3, T=4, 9=5, 8=6, 7=7, 6=8, 5=9, 4=10, 3=11, 2=12
+    expect(test(0, 0)).toBe(false); // AA はレンジ外
+    expect(test(3, 3)).toBe(false); // JJ はレンジ外
+    expect(test(4, 4)).toBe(true); // TT
+    expect(test(10, 10)).toBe(true); // 44
+    expect(test(11, 11)).toBe(false); // 33 はレンジ外
+    expect(test(0, 1)).toBe(false); // AKs はレンジ外
+    expect(test(0, 2)).toBe(true); // AQs
+    expect(test(0, 7)).toBe(true); // A7s
+    expect(test(0, 8)).toBe(false); // A6s はレンジ外
+    expect(test(0, 9)).toBe(true); // A5s
+    expect(test(0, 10)).toBe(true); // A4s
+    expect(test(0, 11)).toBe(false); // A3s はレンジ外
+    expect(test(1, 5)).toBe(true); // K9s
+    expect(test(1, 6)).toBe(false); // K8s はレンジ外
+    expect(test(2, 4)).toBe(true); // QTs
+    expect(test(2, 5)).toBe(false); // Q9s はレンジ外
+    expect(test(4, 5)).toBe(true); // T9s
+    expect(test(4, 6)).toBe(false); // T8s はレンジ外
+    expect(test(5, 6)).toBe(false); // 98s はレンジ外
+    expect(test(3, 0)).toBe(true); // AJo
+    expect(test(2, 0)).toBe(false); // AQo はレンジ外
+    expect(test(4, 0)).toBe(false); // ATo はレンジ外
+    expect(test(3, 1)).toBe(false); // KJo はレンジ外
+  });
+
   it('境界セルの in/out が画像のレンジと一致する', () => {
     const test = presetToGridTest(PRESET_RANGES[0]); // open-range
     // GRID_RANKS: A=0, K=1, Q=2, J=3, T=4, 9=5, 8=6, 7=7, 6=8, 5=9, 4=10
@@ -92,6 +121,12 @@ describe('コンボ数計算（デッドカードなし）', () => {
   it('オープンレンジは 216 コンボ', () => {
     // ペア8×6 + スーテッド24×4 + オフスート6×12 = 216
     expect(presetComboCount(PRESET_RANGES[0], [])).toBe(216);
+  });
+
+  it('コールレンジは 118 コンボ', () => {
+    // ペア7×6 + スーテッド16×4 + オフスート1×12 = 118
+    const preset = PRESET_RANGES.find(p => p.id === 'call-range')!;
+    expect(presetComboCount(preset, [])).toBe(118);
   });
 });
 
