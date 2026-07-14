@@ -43,7 +43,7 @@ export const DIFFICULTY_CONFIG: Record<Difficulty, DifficultyConfig> = {
   },
   advanced: {
     label: '上級編',
-    description: '相手のレンジ×ボードで勝ち負けをカウント',
+    description: '相手のレンジ×ボードで負けコンボをカウント',
     baseTimeSec: 45,
     streetTimeBonusSec: { flop: 0, turn: 8, river: 12 },
     timeScaleFactor: 0.95,
@@ -51,8 +51,8 @@ export const DIFFICULTY_CONFIG: Record<Difficulty, DifficultyConfig> = {
   },
 };
 
-// 中級問題: 自分のハンドと出題対象ハンドを選出するプリセットレンジの id
-export const INTERMEDIATE_RANGE_ID = 'open-range';
+// 中級・上級問題: 自分のハンド（中級は出題対象ハンドも）を選出するプリセットレンジの id
+export const HERO_RANGE_ID = 'open-range';
 // 中級問題: 出題条件（デッドカードが絡むハンドが存在する）を満たすまでの再抽選の上限回数
 export const INTERMEDIATE_RETRY_LIMIT = 10;
 

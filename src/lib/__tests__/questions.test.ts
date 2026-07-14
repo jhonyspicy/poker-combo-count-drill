@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import type { Card } from '../comboCalculator';
 import { RANKS } from '../comboCalculator';
 import type { PresetRange } from '../presetRanges';
-import { getPresetRange, expandHandCombos } from '../presetRanges';
-import { INTERMEDIATE_RANGE_ID } from '../../config/gameConfig';
+import { PRESET_RANGES, getPresetRange, expandHandCombos } from '../presetRanges';
+import { HERO_RANGE_ID } from '../../config/gameConfig';
 import { countRangeVsHero, generateQuestion } from '../questions';
 
 function cards(spec: string): Card[] {
@@ -91,7 +91,6 @@ describe('generateQuestion: 難易度ごとの3要素構成', () => {
       expect(q.rangeLabel).toBe('相手のレンジ');
       expect([3, 4, 5]).toContain(q.board!.length);
       expect(q.hero).toHaveLength(2);
-      expect(q.advancedKind).toMatch(/^(lose|win)$/);
     }
   });
 
@@ -118,8 +117,49 @@ describe('generateQuestion: 難易度ごとの3要素構成', () => {
   });
 });
 
+describe('generateQuestion: 上級は負けコンボ数を問い、自分のハンドはオープンレンジから選ぶ', () => {
+  const heroRange = getPresetRange(HERO_RANGE_ID);
+
+  // 問題文の「相手のレンジ: <名前>」からプリセットを逆引きする
+  function opponentPreset(text: string): PresetRange {
+    const name = text.match(/相手のレンジ: (.+)/)![1];
+    return PRESET_RANGES.find(p => p.name === name)!;
+  }
+
+  it('出題文は「何コンボに負けていますか？」に統一される', () => {
+    for (let i = 0; i < 50; i++) {
+      const q = generateQuestion('advanced');
+      expect(q.text).toContain('あなたは何コンボに負けていますか？');
+      expect(q.text).not.toContain('勝って');
+    }
+  });
+
+  it('自分のハンドはオープンレンジ内のハンドタイプに該当する', () => {
+    for (let i = 0; i < 100; i++) {
+      const q = generateQuestion('advanced');
+      expect(heroRange.hands).toContain(toHandLabel(q.hero!));
+    }
+  });
+
+  it('答えは自分の役より強いレンジ内コンボ数と一致する（検算）', () => {
+    for (let i = 0; i < 100; i++) {
+      const q = generateQuestion('advanced');
+      const counts = countRangeVsHero(opponentPreset(q.text), q.board!, q.hero!);
+      expect(q.answer).toBe(counts.lose);
+    }
+  });
+
+  it('答えは許容範囲（1〜60）に収まる', () => {
+    for (let i = 0; i < 100; i++) {
+      const q = generateQuestion('advanced');
+      expect(q.answer).toBeGreaterThanOrEqual(1);
+      expect(q.answer).toBeLessThanOrEqual(60);
+    }
+  });
+});
+
 describe('generateQuestion: 中級はレンジ選出とデッドカード関連性を保証する', () => {
-  const preset = getPresetRange(INTERMEDIATE_RANGE_ID);
+  const preset = getPresetRange(HERO_RANGE_ID);
 
   it('自分のハンドと出題対象ハンドはどちらもレンジに含まれる', () => {
     for (let i = 0; i < 200; i++) {

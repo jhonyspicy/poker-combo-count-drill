@@ -232,13 +232,12 @@ function QuestionText({ question }: { question: Question }) {
   }
 
   if (question.type === 'range-vs-board') {
-    const verb = question.advancedKind === 'lose' ? '負けています' : '勝っています';
     return (
       <div className={baseClass} style={baseStyle}>
         相手のレンジがレンジ表の通りだとします。
         上記のボードとハンドのとき、あなたは
         <span className="font-extrabold" style={gold}>
-          何コンボに{verb}
+          何コンボに負けています
         </span>
         か？
       </div>

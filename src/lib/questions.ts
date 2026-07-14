@@ -6,7 +6,7 @@ import {
 import type { Difficulty, QuestionType, Street } from '../config/gameConfig';
 import {
   ADVANCED_ANSWER_MIN, ADVANCED_ANSWER_MAX, ADVANCED_RETRY_LIMIT,
-  INTERMEDIATE_RANGE_ID, INTERMEDIATE_RETRY_LIMIT,
+  HERO_RANGE_ID, INTERMEDIATE_RETRY_LIMIT,
 } from '../config/gameConfig';
 import type { RangeCell, RangePattern } from './rangeQuestions';
 import {
@@ -34,7 +34,6 @@ export interface Question {
   street?: Street; // ボードあり問題のストリート（制限時間の加算に使う）
   // --- プレイ画面の問題文描画用 ---
   handLabel?: string; // 中級: 出題対象のハンド表記（例: AA, AKs, AKo）
-  advancedKind?: 'lose' | 'win'; // 上級: 負けている / 勝っているコンボを問う
 }
 
 // ---- 共通ユーティリティ ----
@@ -56,22 +55,6 @@ function pickStreet(): Street {
 
 function boardSize(street: Street): 3 | 4 | 5 {
   return street === 'flop' ? 3 : street === 'turn' ? 4 : 5;
-}
-
-// シャッフルしたデッキからボードと自分のハンド（2枚）を配る
-function dealCards(street: Street): { board: Card[]; hero: Card[] } {
-  const size = boardSize(street);
-  const deck: Card[] = [];
-  for (const rank of RANKS) {
-    for (const suit of SUITS) {
-      deck.push({ rank, suit });
-    }
-  }
-  for (let i = deck.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [deck[i], deck[j]] = [deck[j], deck[i]];
-  }
-  return { board: deck.slice(0, size), hero: deck.slice(size, size + 2) };
 }
 
 function cardsString(cards: Card[]): string {
@@ -334,7 +317,7 @@ function makeBoardCountQuestion(board: Card[], hero: Card[], street: Street, han
 }
 
 function makeIntermediateQuestion(): Question {
-  const preset = getPresetRange(INTERMEDIATE_RANGE_ID);
+  const preset = getPresetRange(HERO_RANGE_ID);
   let last: { board: Card[]; hero: Card[]; street: Street } | null = null;
 
   for (let attempt = 0; attempt < INTERMEDIATE_RETRY_LIMIT; attempt++) {
@@ -394,13 +377,12 @@ interface AdvancedCandidate {
   counts: RangeVsHeroCount;
 }
 
-function buildAdvancedQuestion(c: AdvancedCandidate, kind: 'lose' | 'win'): Question {
-  const answer = kind === 'lose' ? c.counts.lose : c.counts.win;
-  const verb = kind === 'lose' ? '負けている' : '勝っている';
+function buildAdvancedQuestion(c: AdvancedCandidate): Question {
+  const answer = c.counts.lose;
 
   const text =
     `ボード: ${cardsString(c.board)}\nあなたのハンド: ${cardsString(c.hero)}\n` +
-    `相手のレンジ: ${c.preset.name}\n\n相手のレンジのうち、あなたが${verb}のは何コンボ？`;
+    `相手のレンジ: ${c.preset.name}\n\nあなたは何コンボに負けていますか？`;
 
   const explanation =
     `あなたの役: ${handCategoryName(c.counts.heroScore)}\n` +
@@ -426,7 +408,6 @@ function buildAdvancedQuestion(c: AdvancedCandidate, kind: 'lose' | 'win'): Ques
     board: c.board,
     hero: c.hero,
     street: c.street,
-    advancedKind: kind,
   };
 }
 
@@ -435,30 +416,26 @@ function inAdvancedRange(answer: number): boolean {
 }
 
 function makeAdvancedQuestion(): Question {
+  const heroRange = getPresetRange(HERO_RANGE_ID);
   let fallback: AdvancedCandidate | null = null;
 
   for (let attempt = 0; attempt < ADVANCED_RETRY_LIMIT; attempt++) {
     const street = pickStreet();
-    const { board, hero } = dealCards(street);
+    const { board, hero } = dealFromRange(heroRange, street);
     const preset = pickPresetRange();
     const counts = countRangeVsHero(preset, board, hero);
     const candidate: AdvancedCandidate = { preset, board, hero, street, counts };
 
-    // 負け/勝ちをランダムに選び、答えが許容範囲内ならそれを採用。
-    // 域外でも反対側が範囲内ならそちらを採用して再抽選を減らす
-    const kind: 'lose' | 'win' = Math.random() < 0.5 ? 'lose' : 'win';
-    const other: 'lose' | 'win' = kind === 'lose' ? 'win' : 'lose';
-    if (inAdvancedRange(counts[kind])) return buildAdvancedQuestion(candidate, kind);
-    if (inAdvancedRange(counts[other])) return buildAdvancedQuestion(candidate, other);
+    if (inAdvancedRange(counts.lose)) return buildAdvancedQuestion(candidate);
 
-    fallback = candidate;
+    // 打ち切りに備え、負けコンボが1以上ある候補を優先して保持する
+    if (!fallback || fallback.counts.lose < 1 || counts.lose >= 1) {
+      fallback = candidate;
+    }
   }
 
-  // 打ち切り: 最後の候補から答えが1以上になりやすい側を採用する
-  const c = fallback!;
-  return buildAdvancedQuestion(c, Math.min(c.counts.lose, c.counts.win) >= 1
-    ? (c.counts.lose <= c.counts.win ? 'lose' : 'win')
-    : (c.counts.lose >= c.counts.win ? 'lose' : 'win'));
+  // 打ち切り: 保持した候補をそのまま採用する
+  return buildAdvancedQuestion(fallback!);
 }
 
 // ---- 公開 API ----

@@ -38,7 +38,7 @@ export default function HowToPage() {
         </p>
         <p>
           <strong className="text-slate-100">上級編</strong> — 相手のレンジ表とボードを見て、自分が
-          何コンボに負けて（勝って）いるかをカウントする総合演習。
+          何コンボに負けているかをカウントする総合演習。
         </p>
       </div>
 
