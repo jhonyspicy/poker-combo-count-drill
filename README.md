@@ -73,6 +73,7 @@
 |---|---|---|
 | オープンレンジ | ペア 77+ / A2s+ / K5s+ / Q9s+ / JTs / ATo+ / KJo+ | 216 |
 | コールレンジ | ペア TT-44 / AQs-A7s・A5s-A4s / K9s+ / QTs+ / JTs / T9s / AJo | 118 |
+| 3ベットレンジ | ペア JJ+ / AKs・A7s-A2s / K9s-K4s / Q9s+ / AJo+ / KJo+ / QJo | 160 |
 
 ## 画面構成
 

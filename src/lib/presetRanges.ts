@@ -52,6 +52,26 @@ export const PRESET_RANGES: PresetRange[] = [
       'AJo',
     ],
   },
+  {
+    id: 'three-bet-range',
+    name: '3ベットレンジ',
+    hands: [
+      // ペア JJ+
+      'AA', 'KK', 'QQ', 'JJ',
+      // Ax スーテッド AKs, A7s-A2s
+      'AKs', 'A7s', 'A6s', 'A5s', 'A4s', 'A3s', 'A2s',
+      // Kx スーテッド K9s-K4s
+      'K9s', 'K8s', 'K7s', 'K6s', 'K5s', 'K4s',
+      // Qx スーテッド Q9s+
+      'QJs', 'QTs', 'Q9s',
+      // Ax オフスート AJo+
+      'AKo', 'AQo', 'AJo',
+      // Kx オフスート KJo+
+      'KQo', 'KJo',
+      // Qx オフスート
+      'QJo',
+    ],
+  },
 ];
 
 export function pickPresetRange(): PresetRange {

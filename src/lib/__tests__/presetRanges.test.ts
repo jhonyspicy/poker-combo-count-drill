@@ -89,6 +89,35 @@ describe('グリッド座標への展開', () => {
     expect(test(3, 1)).toBe(false); // KJo はレンジ外
   });
 
+  it('3ベットレンジの境界セルの in/out が画像のレンジと一致する', () => {
+    const preset = PRESET_RANGES.find(p => p.id === 'three-bet-range')!;
+    const test = presetToGridTest(preset);
+    // GRID_RANKS: A=0, K=1, Q=2, J=3, T=4, 9=5, 8=6, 7=7, 6=8, 5=9, 4=10, 3=11, 2=12
+    expect(test(0, 0)).toBe(true); // AA
+    expect(test(3, 3)).toBe(true); // JJ
+    expect(test(4, 4)).toBe(false); // TT はレンジ外
+    expect(test(0, 1)).toBe(true); // AKs
+    expect(test(0, 2)).toBe(false); // AQs はレンジ外
+    expect(test(0, 6)).toBe(false); // A8s はレンジ外
+    expect(test(0, 7)).toBe(true); // A7s
+    expect(test(0, 12)).toBe(true); // A2s
+    expect(test(1, 2)).toBe(false); // KQs はレンジ外
+    expect(test(1, 5)).toBe(true); // K9s
+    expect(test(1, 10)).toBe(true); // K4s
+    expect(test(1, 11)).toBe(false); // K3s はレンジ外
+    expect(test(2, 3)).toBe(true); // QJs
+    expect(test(2, 5)).toBe(true); // Q9s
+    expect(test(2, 6)).toBe(false); // Q8s はレンジ外
+    expect(test(3, 4)).toBe(false); // JTs はレンジ外
+    expect(test(1, 0)).toBe(true); // AKo
+    expect(test(3, 0)).toBe(true); // AJo
+    expect(test(4, 0)).toBe(false); // ATo はレンジ外
+    expect(test(3, 1)).toBe(true); // KJo
+    expect(test(4, 1)).toBe(false); // KTo はレンジ外
+    expect(test(3, 2)).toBe(true); // QJo
+    expect(test(4, 2)).toBe(false); // QTo はレンジ外
+  });
+
   it('境界セルの in/out が画像のレンジと一致する', () => {
     const test = presetToGridTest(PRESET_RANGES[0]); // open-range
     // GRID_RANKS: A=0, K=1, Q=2, J=3, T=4, 9=5, 8=6, 7=7, 6=8, 5=9, 4=10
@@ -127,6 +156,20 @@ describe('コンボ数計算（デッドカードなし）', () => {
     // ペア7×6 + スーテッド16×4 + オフスート1×12 = 118
     const preset = PRESET_RANGES.find(p => p.id === 'call-range')!;
     expect(presetComboCount(preset, [])).toBe(118);
+  });
+
+  it('3ベットレンジは 160 コンボ', () => {
+    // ペア4×6 + スーテッド16×4 + オフスート6×12 = 160
+    const preset = PRESET_RANGES.find(p => p.id === 'three-bet-range')!;
+    expect(presetComboCount(preset, [])).toBe(160);
+  });
+
+  it('3ベットレンジのハンドタイプ数はペア4・スーテッド16・オフスート6', () => {
+    const preset = PRESET_RANGES.find(p => p.id === 'three-bet-range')!;
+    const kinds = preset.hands.map(hand => parseHand(hand).kind);
+    expect(kinds.filter(k => k === 'pair')).toHaveLength(4);
+    expect(kinds.filter(k => k === 'suited')).toHaveLength(16);
+    expect(kinds.filter(k => k === 'offsuit')).toHaveLength(6);
   });
 });
 
