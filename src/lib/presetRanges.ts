@@ -78,6 +78,13 @@ export function pickPresetRange(): PresetRange {
   return PRESET_RANGES[Math.floor(Math.random() * PRESET_RANGES.length)];
 }
 
+// id でプリセットを取得する。見つからないのは設定ミス（バグ）なので例外にする
+export function getPresetRange(id: string): PresetRange {
+  const preset = PRESET_RANGES.find(p => p.id === id);
+  if (!preset) throw new Error(`プリセットレンジが見つかりません: ${id}`);
+  return preset;
+}
+
 // ハンド表記をパースする。不正な表記は問題生成のバグなので例外にする
 export function parseHand(hand: string): { high: Rank; low: Rank; kind: 'pair' | 'suited' | 'offsuit' } {
   const high = hand[0] as Rank;

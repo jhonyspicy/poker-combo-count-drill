@@ -1,10 +1,20 @@
 import { describe, it, expect } from 'vitest';
 import type { Card } from '../comboCalculator';
+import { RANKS } from '../comboCalculator';
 import type { PresetRange } from '../presetRanges';
+import { getPresetRange, expandHandCombos } from '../presetRanges';
+import { INTERMEDIATE_RANGE_ID } from '../../config/gameConfig';
 import { countRangeVsHero, generateQuestion } from '../questions';
 
 function cards(spec: string): Card[] {
   return spec.split(' ').map(s => ({ rank: s[0], suit: s[1] }) as Card);
+}
+
+// カード2枚をハンドタイプ表記（AA / AKs / AKo。高いランクが先）に直す
+function toHandLabel(hand: Card[]): string {
+  const [a, b] = [...hand].sort((x, y) => RANKS.indexOf(y.rank) - RANKS.indexOf(x.rank));
+  if (a.rank === b.rank) return `${a.rank}${b.rank}`;
+  return `${a.rank}${b.rank}${a.suit === b.suit ? 's' : 'o'}`;
 }
 
 describe('countRangeVsHero: 勝敗カウント（手計算と照合）', () => {
@@ -104,6 +114,48 @@ describe('generateQuestion: 難易度ごとの3要素構成', () => {
         expect(new Set(q.choices).size).toBe(4);
         expect(q.choices).toContain(q.answer);
       }
+    }
+  });
+});
+
+describe('generateQuestion: 中級はレンジ選出とデッドカード関連性を保証する', () => {
+  const preset = getPresetRange(INTERMEDIATE_RANGE_ID);
+
+  it('自分のハンドと出題対象ハンドはどちらもレンジに含まれる', () => {
+    for (let i = 0; i < 200; i++) {
+      const q = generateQuestion('intermediate');
+      expect(preset.hands).toContain(toHandLabel(q.hero!));
+      expect(preset.hands).toContain(q.handLabel!);
+    }
+  });
+
+  it('出題対象ハンドのランクがデッドカードに含まれ、答えは素のコンボ数（6/4/12）より小さい', () => {
+    const fullCount = { pair: 6, suited: 4, offsuit: 12 };
+    for (let i = 0; i < 200; i++) {
+      const q = generateQuestion('intermediate');
+      const dead = [...q.board!, ...q.hero!];
+      const label = q.handLabel!;
+      const deadRankCount = dead.filter(c => c.rank === label[0] || c.rank === label[1]).length;
+      expect(deadRankCount).toBeGreaterThanOrEqual(1);
+      const kind = label.length === 2 ? 'pair' : label[2] === 's' ? 'suited' : 'offsuit';
+      expect(q.answer).toBeLessThan(fullCount[kind]);
+    }
+  });
+
+  it('答えは常に1以上で、デッドカード除外のコンボ展開数と一致する（検算）', () => {
+    for (let i = 0; i < 200; i++) {
+      const q = generateQuestion('intermediate');
+      const dead = [...q.board!, ...q.hero!];
+      expect(q.answer).toBeGreaterThanOrEqual(1);
+      expect(q.answer).toBe(expandHandCombos(q.handLabel!, dead).length);
+    }
+  });
+
+  it('ボード・自分のハンドに重複カードはない', () => {
+    for (let i = 0; i < 200; i++) {
+      const q = generateQuestion('intermediate');
+      const all = [...q.board!, ...q.hero!].map(c => `${c.rank}${c.suit}`);
+      expect(new Set(all).size).toBe(all.length);
     }
   });
 });

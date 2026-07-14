@@ -6,13 +6,17 @@ import {
 import type { Difficulty, QuestionType, Street } from '../config/gameConfig';
 import {
   ADVANCED_ANSWER_MIN, ADVANCED_ANSWER_MAX, ADVANCED_RETRY_LIMIT,
+  INTERMEDIATE_RANGE_ID, INTERMEDIATE_RETRY_LIMIT,
 } from '../config/gameConfig';
 import type { RangeCell, RangePattern } from './rangeQuestions';
 import {
   buildRangeQuestionData, pickRangePattern, pickSingleHandPattern, HAND_TYPE_ANSWERS,
 } from './rangeQuestions';
 import type { PresetRange } from './presetRanges';
-import { pickPresetRange, presetToGridTest, expandPresetCombos } from './presetRanges';
+import {
+  pickPresetRange, getPresetRange, presetToGridTest, expandPresetCombos,
+  expandHandCombos, parseHand,
+} from './presetRanges';
 import { evaluateBest, handCategoryName } from './handEvaluator';
 
 export interface Question {
@@ -174,32 +178,71 @@ function makeBeginnerQuestion(): Question {
 }
 
 // ---- 中級問題（ボード + 文章）: デッドカードを考慮したコンボ数カウント ----
+// 自分のハンドと出題対象ハンドはプリセットレンジ（初期値: オープンレンジ）から選ぶ。
+// 出題対象ハンドは必ずデッドカードとランクが重なるものに限定し、
+// 「デッドカードを数えないと解けない問題」だけを出題する。
 
-// デッドカード問題で出題対象とするランク（高いランクほどポーカーの実戦で重要）
-const QUERY_RANKS: Rank[] = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7'];
+// レンジ内ハンドタイプを具体カード2枚に展開し、残りデッキからボードを配る
+function dealFromRange(preset: PresetRange, street: Street): { board: Card[]; hero: Card[] } {
+  const heroHand = preset.hands[Math.floor(Math.random() * preset.hands.length)];
+  const combos = expandHandCombos(heroHand, []);
+  const hero = [...combos[Math.floor(Math.random() * combos.length)]];
 
-function pickRank(dead: Card[], exclude?: Rank): Rank {
-  const pool = QUERY_RANKS.filter(r => {
-    if (r === exclude) return false;
-    return dead.filter(c => c.rank === r).length < 4;
-  });
-  return pool[Math.floor(Math.random() * pool.length)] ?? 'A';
+  const deck: Card[] = [];
+  for (const rank of RANKS) {
+    for (const suit of SUITS) {
+      if (!hero.some(c => c.rank === rank && c.suit === suit)) {
+        deck.push({ rank, suit });
+      }
+    }
+  }
+  return { board: shuffle(deck).slice(0, boardSize(street)), hero };
 }
 
-// 非ペア2ランクをハンド表記の規約どおり「高いランクが先」に並べて返す
-function pickRankPair(dead: Card[]): [Rank, Rank] {
-  const r1 = pickRank(dead);
-  const r2 = pickRank(dead, r1);
-  return RANKS.indexOf(r1) >= RANKS.indexOf(r2) ? [r1, r2] : [r2, r1];
+// ハンドタイプの残りコンボ数（デッドカード考慮）
+function handComboCount(hand: string, dead: Card[]): number {
+  const { high, low, kind } = parseHand(hand);
+  if (kind === 'pair') return pairCombos(high, dead);
+  if (kind === 'suited') return suitedCombos(high, low, dead);
+  return offsuitCombos(high, low, dead);
+}
+
+// 出題対象ハンドの候補: レンジ内 かつ 残り1コンボ以上。
+// requireDeadRank が true のときは、デッドカードにそのハンドのランクが1枚以上含まれる
+// （＝答えが素の 6 / 4 / 12 から必ず減る）ハンドに限定する
+function queryHandCandidates(preset: PresetRange, dead: Card[], requireDeadRank: boolean): string[] {
+  return preset.hands.filter(hand => {
+    const { high, low } = parseHand(hand);
+    if (requireDeadRank && !dead.some(c => c.rank === high || c.rank === low)) return false;
+    return handComboCount(hand, dead) >= 1;
+  });
+}
+
+type HandCategory = 'pair' | 'suited' | 'offsuit';
+
+// 候補からカテゴリ重み付きで出題対象ハンドを選ぶ。
+// オフスートは引き算の導出練習として最重要なので出題頻度を高くしている
+function pickQueryHand(candidates: string[]): string {
+  const byCategory: Record<HandCategory, string[]> = { pair: [], suited: [], offsuit: [] };
+  for (const hand of candidates) {
+    byCategory[parseHand(hand).kind].push(hand);
+  }
+  // 現行の重み（pair 1 : suited 1 : offsuit 2）を、候補が空でないカテゴリの中で維持する
+  const weighted: HandCategory[] = [];
+  if (byCategory.pair.length > 0) weighted.push('pair');
+  if (byCategory.suited.length > 0) weighted.push('suited');
+  if (byCategory.offsuit.length > 0) weighted.push('offsuit', 'offsuit');
+  const category = weighted[Math.floor(Math.random() * weighted.length)];
+  const pool = byCategory[category];
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
 function boardQuestionText(board: Card[], hero: Card[], handLabel: string): string {
   return `ボード: ${cardsString(board)}\nあなたのハンド: ${cardsString(hero)}\n\n相手が ${handLabel} を持っているコンボ数は？`;
 }
 
-function makePairQuestion(board: Card[], hero: Card[], street: Street, forceRank?: Rank): Question {
+function makePairQuestion(board: Card[], hero: Card[], street: Street, rank: Rank): Question {
   const dead = [...board, ...hero];
-  const rank = forceRank ?? pickRank(dead);
   const answer = pairCombos(rank, dead);
   const deadCount = dead.filter(c => c.rank === rank).length;
   const remaining = 4 - deadCount;
@@ -224,9 +267,8 @@ function makePairQuestion(board: Card[], hero: Card[], street: Street, forceRank
   };
 }
 
-function makeSuitedQuestion(board: Card[], hero: Card[], street: Street): Question {
+function makeSuitedQuestion(board: Card[], hero: Card[], street: Street, rank1: Rank, rank2: Rank): Question {
   const dead = [...board, ...hero];
-  const [rank1, rank2] = pickRankPair(dead);
   const answer = suitedCombos(rank1, rank2, dead);
 
   const aliveSuits: Suit[] = SUITS.filter(s => {
@@ -254,9 +296,8 @@ function makeSuitedQuestion(board: Card[], hero: Card[], street: Street): Questi
   };
 }
 
-function makeOffsuitQuestion(board: Card[], hero: Card[], street: Street): Question {
+function makeOffsuitQuestion(board: Card[], hero: Card[], street: Street, rank1: Rank, rank2: Rank): Question {
   const dead = [...board, ...hero];
-  const [rank1, rank2] = pickRankPair(dead);
   const r1Left = 4 - dead.filter(c => c.rank === rank1).length;
   const r2Left = 4 - dead.filter(c => c.rank === rank2).length;
   const total = r1Left * r2Left;
@@ -284,35 +325,34 @@ function makeOffsuitQuestion(board: Card[], hero: Card[], street: Street): Quest
   };
 }
 
-type HandCategory = 'pair' | 'suited' | 'offsuit';
-
-function pickHandCategory(): HandCategory {
-  // オフスートはポーカーで最も頻出のため出題頻度を高くしている
-  const cats: HandCategory[] = ['pair', 'suited', 'offsuit', 'offsuit'];
-  return cats[Math.floor(Math.random() * cats.length)];
+// 出題対象ハンドの表記からカテゴリに応じた問題を組み立てる
+function makeBoardCountQuestion(board: Card[], hero: Card[], street: Street, hand: string): Question {
+  const { high, low, kind } = parseHand(hand);
+  if (kind === 'pair') return makePairQuestion(board, hero, street, high);
+  if (kind === 'suited') return makeSuitedQuestion(board, hero, street, high, low);
+  return makeOffsuitQuestion(board, hero, street, high, low);
 }
 
 function makeIntermediateQuestion(): Question {
-  for (let attempt = 0; attempt < 10; attempt++) {
+  const preset = getPresetRange(INTERMEDIATE_RANGE_ID);
+  let last: { board: Card[]; hero: Card[]; street: Street } | null = null;
+
+  for (let attempt = 0; attempt < INTERMEDIATE_RETRY_LIMIT; attempt++) {
     const street = pickStreet();
-    const { board, hero } = dealCards(street);
-    const category = pickHandCategory();
-
-    let q: Question;
-    if (category === 'pair') q = makePairQuestion(board, hero, street);
-    else if (category === 'suited') q = makeSuitedQuestion(board, hero, street);
-    else q = makeOffsuitQuestion(board, hero, street);
-
-    if (q.answer >= 1) return q;
+    const { board, hero } = dealFromRange(preset, street);
+    const candidates = queryHandCandidates(preset, [...board, ...hero], true);
+    if (candidates.length > 0) {
+      return makeBoardCountQuestion(board, hero, street, pickQueryHand(candidates));
+    }
+    last = { board, hero, street };
   }
-  // 10回試行してもコンボ数が0になる場合（極めてレアなボード）は、
-  // 見えていないランクのペア問題（答えは必ず6）で代替する
-  const street = pickStreet();
-  const { board, hero } = dealCards(street);
-  const dead = [...board, ...hero];
-  // デッドカードは最大7枚なので、1枚も見えていないランクが必ず存在する
-  const aliveRank = RANKS.find(r => !dead.some(c => c.rank === r)) ?? 'A';
-  return makePairQuestion(board, hero, street, aliveRank);
+
+  // 打ち切り（理論上ほぼ到達しない）: デッド関連性の条件を外し、レンジ内で残っている
+  // ハンドから出題する。デッドカードは最大7枚でレンジ内のペアを2ランクまでしか
+  // 潰せないため、候補は必ず存在する
+  const { board, hero, street } = last!;
+  const candidates = queryHandCandidates(preset, [...board, ...hero], false);
+  return makeBoardCountQuestion(board, hero, street, pickQueryHand(candidates));
 }
 
 // ---- 上級問題（レンジ表 + ボード + 文章）: レンジに対する勝敗カウント ----

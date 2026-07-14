@@ -51,6 +51,11 @@ export const DIFFICULTY_CONFIG: Record<Difficulty, DifficultyConfig> = {
   },
 };
 
+// 中級問題: 自分のハンドと出題対象ハンドを選出するプリセットレンジの id
+export const INTERMEDIATE_RANGE_ID = 'open-range';
+// 中級問題: 出題条件（デッドカードが絡むハンドが存在する）を満たすまでの再抽選の上限回数
+export const INTERMEDIATE_RETRY_LIMIT = 10;
+
 // 上級問題: 答えがこの範囲に収まるまで再抽選する（人間が制限時間内に数えられる問題にするため）
 export const ADVANCED_ANSWER_MIN = 1;
 export const ADVANCED_ANSWER_MAX = 60;
