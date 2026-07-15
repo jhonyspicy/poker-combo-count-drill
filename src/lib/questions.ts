@@ -14,7 +14,7 @@ import {
 } from './rangeQuestions';
 import type { PresetRange } from './presetRanges';
 import {
-  pickPresetRange, getPresetRange, presetToGridTest, expandPresetCombos,
+  pickPresetRange, getPresetRange, presetToGridTest,
   expandHandCombos, parseHand,
 } from './presetRanges';
 import { evaluateBest, handCategoryName } from './handEvaluator';
@@ -346,6 +346,8 @@ export interface RangeVsHeroCount {
   chop: number; // 引き分け（勝ち負けに数えない）
   total: number; // デッドカード除外後のレンジ内総コンボ数
   heroScore: number;
+  // 負けコンボを1つ以上含むハンドタイプの表記（序盤ヒントの負けセル表示に使う）
+  loseHands: Set<string>;
 }
 
 // レンジ内の全コンボと自分の役を比較して数える（上級問題の正解計算の中核。テスト対象）
@@ -355,13 +357,18 @@ export function countRangeVsHero(preset: PresetRange, board: Card[], hero: Card[
   let lose = 0;
   let win = 0;
   let chop = 0;
-  for (const combo of expandPresetCombos(preset, dead)) {
-    const score = evaluateBest([...board, ...combo]);
-    if (score > heroScore) lose++;
-    else if (score < heroScore) win++;
-    else chop++;
+  const loseHands = new Set<string>();
+  for (const hand of preset.hands) {
+    for (const combo of expandHandCombos(hand, dead)) {
+      const score = evaluateBest([...board, ...combo]);
+      if (score > heroScore) {
+        lose++;
+        loseHands.add(hand);
+      } else if (score < heroScore) win++;
+      else chop++;
+    }
   }
-  return { lose, win, chop, total: lose + win + chop, heroScore };
+  return { lose, win, chop, total: lose + win + chop, heroScore, loseHands };
 }
 
 function generateAdvancedDistractors(answer: number): number[] {
@@ -396,6 +403,11 @@ function buildAdvancedQuestion(c: AdvancedCandidate): Question {
     label: '',
     test: presetToGridTest(c.preset),
   }).cells;
+
+  // 序盤ヒント用: 負けコンボを含むハンドタイプのセルに印を付ける（表示するかは UI 側が判定）
+  for (const cell of cells) {
+    if (cell.hit && c.counts.loseHands.has(cell.label)) cell.lose = true;
+  }
 
   return {
     type: 'range-vs-board',

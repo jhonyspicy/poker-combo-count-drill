@@ -3,7 +3,9 @@ import { useNavigate, useParams, Navigate } from 'react-router-dom';
 import { generateQuestion } from '../lib/questions';
 import type { Question } from '../lib/questions';
 import type { Difficulty } from '../config/gameConfig';
-import { DIFFICULTY_CONFIG, getTimeLimitSec, isDifficulty } from '../config/gameConfig';
+import {
+  ADVANCED_HINT_QUESTIONS, DIFFICULTY_CONFIG, getTimeLimitSec, isDifficulty,
+} from '../config/gameConfig';
 import { tryUpdateBestScore } from '../lib/bestScore';
 import RangeGrid from '../components/RangeGrid';
 import FeltStrip from '../components/FeltStrip';
@@ -122,6 +124,10 @@ function PlayGame({ difficulty }: { difficulty: Difficulty }) {
   const hasBoard = !!(question.board && question.hero);
   const rangeGridWidth = hasBoard ? 290 : 360;
 
+  // 上級序盤ヒント: 連続正解数が設定値未満の間、負けセルを二重ハイライトする
+  const hintActive = question.type === 'range-vs-board' && score < ADVANCED_HINT_QUESTIONS;
+  const hintRemaining = ADVANCED_HINT_QUESTIONS - score;
+
   return (
     <div
       className="min-h-dvh flex justify-center"
@@ -152,11 +158,22 @@ function PlayGame({ difficulty }: { difficulty: Difficulty }) {
         {/* 問題要素（レンジ表 / ボード＋自分のハンド / 文章）の出し分け */}
         <div className="flex-1 flex flex-col justify-center gap-3 px-4 pt-2">
           {question.rangeCells && (
-            <RangeGrid
-              cells={question.rangeCells}
-              label={question.rangeLabel ?? 'レンジ表'}
-              maxWidthPx={rangeGridWidth}
-            />
+            <div className="flex flex-col gap-1">
+              <RangeGrid
+                cells={question.rangeCells}
+                label={question.rangeLabel ?? 'レンジ表'}
+                maxWidthPx={rangeGridWidth}
+                showLoseHint={hintActive}
+              />
+              {hintActive && (
+                <div
+                  className="text-center text-[11px] font-semibold"
+                  style={{ color: '#7d8aa8' }}
+                >
+                  ヒント表示中（残り {hintRemaining} 問）
+                </div>
+              )}
+            </div>
           )}
 
           {hasBoard && <FeltStrip board={question.board!} hero={question.hero!} />}

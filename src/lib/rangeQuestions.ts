@@ -7,6 +7,8 @@ export const GRID_RANKS = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4'
 export interface RangeCell {
   label: string; // ハンド表記（AA / AKs / AKo など）
   hit: boolean; // 出題エリアに含まれるか
+  // 上級問題の序盤ヒント用: 自分より強いコンボを1つ以上含むか（レンジ内セルのみ）
+  lose?: boolean;
 }
 
 export interface RangePattern {

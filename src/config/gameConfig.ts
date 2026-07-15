@@ -61,6 +61,9 @@ export const ADVANCED_ANSWER_MIN = 1;
 export const ADVANCED_ANSWER_MAX = 60;
 // 再抽選の上限回数（超えたら最後の候補を採用する）
 export const ADVANCED_RETRY_LIMIT = 40;
+// 上級問題: 序盤ヒント（負けセルの二重ハイライト）を表示する問題数。
+// 連続正解数がこの値未満の間だけレンジ表に負けセルが表示される
+export const ADVANCED_HINT_QUESTIONS = 10;
 
 // ルートパラメータ等の文字列が難易度として正当かを判定する
 export function isDifficulty(value: string | undefined): value is Difficulty {

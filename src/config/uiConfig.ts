@@ -33,6 +33,8 @@ export const FELT_COLORS = {
 export const RANGE_GRID_COLORS = {
   highlightBg: '#f5b83d', // 出題エリアのセル
   highlightFg: '#241a04',
+  loseBg: '#e0524d', // 上級序盤ヒント: 負けコンボを含むセル
+  loseFg: '#2b0707',
   cellBg: '#1a2338', // エリア外のセル
   cellFg: '#5a668a',
   panelBg: '#111a2e', // パネルの背景

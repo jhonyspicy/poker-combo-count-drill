@@ -7,10 +7,12 @@ interface RangeGridProps {
   label: string;
   // パネルの最大幅（上級は3要素を1画面に収めるため小さめにする）
   maxWidthPx?: number;
+  // 上級序盤ヒント: 負けセル（lose）を別色で二重ハイライトする
+  showLoseHint?: boolean;
 }
 
 // 13×13のレンジ表パネル。見出し・凡例付きのカード風パネルに出題エリア（hit）をハイライト表示する
-export default function RangeGrid({ cells, label, maxWidthPx = 330 }: RangeGridProps) {
+export default function RangeGrid({ cells, label, maxWidthPx = 330, showLoseHint = false }: RangeGridProps) {
   // 相手のレンジ表示ではセルが「レンジ内」、それ以外は問題の「対象エリア」を意味する
   const legend = label === '相手のレンジ' ? 'レンジ内' : '対象エリア';
 
@@ -41,6 +43,15 @@ export default function RangeGrid({ cells, label, maxWidthPx = 330 }: RangeGridP
             style={{ background: RANGE_GRID_COLORS.highlightBg }}
           />
           {legend}
+          {showLoseHint && (
+            <>
+              <span
+                className="inline-block w-[9px] h-[9px] rounded-[2px] ml-1.5"
+                style={{ background: RANGE_GRID_COLORS.loseBg }}
+              />
+              負けあり
+            </>
+          )}
         </div>
       </div>
 
@@ -51,13 +62,20 @@ export default function RangeGrid({ cells, label, maxWidthPx = 330 }: RangeGridP
           gridTemplateRows: 'repeat(13, 1fr)',
         }}
       >
-        {cells.map(cell => (
+        {cells.map(cell => {
+          // ヒント表示中はレンジ内の負けセルを別色にする
+          const isLose = showLoseHint && cell.hit && cell.lose;
+          return (
           <div
             key={cell.label}
             className="flex items-center justify-center rounded-[3px] font-bold"
             style={{
-              background: cell.hit ? RANGE_GRID_COLORS.highlightBg : RANGE_GRID_COLORS.cellBg,
-              color: cell.hit ? RANGE_GRID_COLORS.highlightFg : RANGE_GRID_COLORS.cellFg,
+              background: isLose
+                ? RANGE_GRID_COLORS.loseBg
+                : cell.hit ? RANGE_GRID_COLORS.highlightBg : RANGE_GRID_COLORS.cellBg,
+              color: isLose
+                ? RANGE_GRID_COLORS.loseFg
+                : cell.hit ? RANGE_GRID_COLORS.highlightFg : RANGE_GRID_COLORS.cellFg,
               // 狭い画面ではセル幅に合わせて縮む
               fontSize: 'clamp(7px, 2.6vw, 11px)',
               letterSpacing: '-0.03em',
@@ -65,7 +83,8 @@ export default function RangeGrid({ cells, label, maxWidthPx = 330 }: RangeGridP
           >
             {cell.label}
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
