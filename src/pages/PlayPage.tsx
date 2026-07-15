@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, Navigate } from 'react-router-dom';
 import { generateQuestion } from '../lib/questions';
-import type { Question } from '../lib/questions';
+import type { Choice, Question } from '../lib/questions';
 import type { Difficulty } from '../config/gameConfig';
 import {
   ADVANCED_HINT_QUESTIONS, DIFFICULTY_CONFIG, getTimeLimitSec, isDifficulty,
@@ -78,10 +78,10 @@ function PlayGame({ difficulty }: { difficulty: Difficulty }) {
     };
   }, []);
 
-  function handleChoice(choice: number, index: number) {
+  function handleChoice(choice: Choice, index: number) {
     if (wrongPick !== null) return;
 
-    if (choice !== question.answer) {
+    if (!choice.correct) {
       // 不正解: タイマーを止めて正解をハイライトし、少し見せてからリザルトへ
       frozenRef.current = true;
       setWrongPick(index);
@@ -197,7 +197,7 @@ function PlayGame({ difficulty }: { difficulty: Difficulty }) {
             let border = '#2a3552';
             let fg = '#eef1f8';
             if (answered) {
-              if (choice === question.answer) {
+              if (choice.correct) {
                 bg = '#1c5c3a';
                 border = '#2f9d63';
               } else if (i === wrongPick) {
@@ -209,7 +209,7 @@ function PlayGame({ difficulty }: { difficulty: Difficulty }) {
             }
             return (
               <button
-                key={choice}
+                key={i}
                 onClick={() => handleChoice(choice, i)}
                 disabled={answered}
                 className="h-15 rounded-xl text-[22px] font-bold active:scale-[0.97] touch-manipulation"
@@ -220,7 +220,7 @@ function PlayGame({ difficulty }: { difficulty: Difficulty }) {
                   transition: 'background 0.15s ease, border-color 0.15s ease',
                 }}
               >
-                {choice}
+                {choice.label}
               </button>
             );
           })}

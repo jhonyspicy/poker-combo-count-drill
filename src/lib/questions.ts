@@ -5,7 +5,7 @@ import {
 } from './comboCalculator';
 import type { Difficulty, QuestionType, Street } from '../config/gameConfig';
 import {
-  ADVANCED_ANSWER_MIN, ADVANCED_ANSWER_MAX, ADVANCED_RETRY_LIMIT,
+  ADVANCED_CHOICE_BUCKETS, advancedBucketIndex, ADVANCED_RETRY_LIMIT,
   HERO_RANGE_ID, INTERMEDIATE_RETRY_LIMIT,
 } from '../config/gameConfig';
 import type { RangeCell, RangePattern } from './rangeQuestions';
@@ -19,12 +19,18 @@ import {
 } from './presetRanges';
 import { evaluateBest, handCategoryName } from './handEvaluator';
 
+// 4択の選択肢。初級・中級は数値の文字列、上級はコンボ数帯（例:「11〜40」）
+export interface Choice {
+  label: string;
+  correct: boolean;
+}
+
 export interface Question {
   type: QuestionType;
   // リザルト画面用の問題文全文（プレイ画面は下の構造化フィールドから描画する）
   text: string;
-  answer: number;
-  choices: number[]; // 正解を含む4値（シャッフル済み）
+  answer: number; // 正確な答え（解説・リザルト画面用。上級は帯ではなくこの数値を表示する）
+  choices: Choice[]; // 4択（初級・中級はシャッフル済み、上級は昇順固定の帯）
   explanation: string;
   // --- 3要素の出し分け（存在する要素だけをプレイ画面が描画する） ---
   rangeCells?: RangeCell[]; // レンジ表: 169セル（行優先）
@@ -59,6 +65,14 @@ function boardSize(street: Street): 3 | 4 | 5 {
 
 function cardsString(cards: Card[]): string {
   return cards.map(cardToString).join(' ');
+}
+
+// 正解と誤答（数値）をシャッフルして4択に変換する（初級・中級用）
+function numberChoices(answer: number, distractors: number[]): Choice[] {
+  return shuffle([answer, ...distractors]).map(v => ({
+    label: String(v),
+    correct: v === answer,
+  }));
 }
 
 // ---- 誤答候補の生成 ----
@@ -134,7 +148,7 @@ function makeRangePatternQuestion(pattern: RangePattern, rangeLabel: string): Qu
     type: 'beginner-range',
     text: data.pattern.label,
     answer: data.answer,
-    choices: shuffle([data.answer, ...generateBeginnerDistractors(data.answer)]),
+    choices: numberChoices(data.answer, generateBeginnerDistractors(data.answer)),
     explanation: data.explanation,
     rangeCells: data.cells,
     rangeLabel,
@@ -241,7 +255,7 @@ function makePairQuestion(board: Card[], hero: Card[], street: Street, rank: Ran
     type: 'board-count',
     text: boardQuestionText(board, hero, `${rank}${rank}`),
     answer,
-    choices: shuffle([answer, ...distractors]),
+    choices: numberChoices(answer, distractors),
     explanation,
     board,
     hero,
@@ -270,7 +284,7 @@ function makeSuitedQuestion(board: Card[], hero: Card[], street: Street, rank1: 
     type: 'board-count',
     text: boardQuestionText(board, hero, `${rank1}${rank2}s`),
     answer,
-    choices: shuffle([answer, ...distractors]),
+    choices: numberChoices(answer, distractors),
     explanation,
     board,
     hero,
@@ -299,7 +313,7 @@ function makeOffsuitQuestion(board: Card[], hero: Card[], street: Street, rank1:
     type: 'board-count',
     text: boardQuestionText(board, hero, `${rank1}${rank2}o`),
     answer,
-    choices: shuffle([answer, ...distractors]),
+    choices: numberChoices(answer, distractors),
     explanation,
     board,
     hero,
@@ -371,9 +385,15 @@ export function countRangeVsHero(preset: PresetRange, board: Card[], hero: Card[
   return { lose, win, chop, total: lose + win + chop, heroScore, loseHands };
 }
 
-function generateAdvancedDistractors(answer: number): number[] {
-  const step = answer <= 12 ? 1 : answer <= 30 ? 2 : 4;
-  return generateSteppedDistractors(answer, step);
+// 上級の4択は個別の数値ではなくコンボ数帯（バケット）。実戦で必要なのは正確な
+// カウントではなく「負けている可能性のオーダー」の見積もりなので、帯は大きく離す。
+// 選択肢はシャッフルせず常に昇順固定（位置が固定されると反射的な判断の訓練になる）
+function bucketChoices(answer: number): Choice[] {
+  const correctIndex = advancedBucketIndex(answer);
+  return ADVANCED_CHOICE_BUCKETS.map((bucket, i) => ({
+    label: bucket.label,
+    correct: i === correctIndex,
+  }));
 }
 
 interface AdvancedCandidate {
@@ -413,7 +433,7 @@ function buildAdvancedQuestion(c: AdvancedCandidate): Question {
     type: 'range-vs-board',
     text,
     answer,
-    choices: shuffle([answer, ...generateAdvancedDistractors(answer)]),
+    choices: bucketChoices(answer),
     explanation,
     rangeCells: cells,
     rangeLabel: '相手のレンジ',
@@ -423,31 +443,27 @@ function buildAdvancedQuestion(c: AdvancedCandidate): Question {
   };
 }
 
-function inAdvancedRange(answer: number): boolean {
-  return answer >= ADVANCED_ANSWER_MIN && answer <= ADVANCED_ANSWER_MAX;
-}
-
 function makeAdvancedQuestion(): Question {
   const heroRange = getPresetRange(HERO_RANGE_ID);
-  let fallback: AdvancedCandidate | null = null;
+
+  // 正解バケットの偏り防止: 目標の帯を一様ランダムに選び、負けコンボ数がそこに
+  // 落ちるまで再抽選する。これがないと答えが特定の帯に偏り、いつも同じ選択肢を
+  // 押せば当たるクイズに退化してしまう
+  const targetBucket = Math.floor(Math.random() * ADVANCED_CHOICE_BUCKETS.length);
+  let candidate: AdvancedCandidate | null = null;
 
   for (let attempt = 0; attempt < ADVANCED_RETRY_LIMIT; attempt++) {
     const street = pickStreet();
     const { board, hero } = dealFromRange(heroRange, street);
     const preset = pickPresetRange();
     const counts = countRangeVsHero(preset, board, hero);
-    const candidate: AdvancedCandidate = { preset, board, hero, street, counts };
+    candidate = { preset, board, hero, street, counts };
 
-    if (inAdvancedRange(counts.lose)) return buildAdvancedQuestion(candidate);
-
-    // 打ち切りに備え、負けコンボが1以上ある候補を優先して保持する
-    if (!fallback || fallback.counts.lose < 1 || counts.lose >= 1) {
-      fallback = candidate;
-    }
+    if (advancedBucketIndex(counts.lose) === targetBucket) break;
   }
 
-  // 打ち切り: 保持した候補をそのまま採用する
-  return buildAdvancedQuestion(fallback!);
+  // 打ち切り時も最終候補をそのまま採用する（どの帯に落ちても問題として成立する）
+  return buildAdvancedQuestion(candidate!);
 }
 
 // ---- 公開 API ----
