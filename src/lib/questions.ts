@@ -5,7 +5,8 @@ import {
 } from './comboCalculator';
 import type { Difficulty, QuestionType, Street } from '../config/gameConfig';
 import {
-  ADVANCED_CHOICE_BUCKETS, advancedBucketIndex, ADVANCED_RETRY_LIMIT,
+  advancedChoiceZones, advancedZoneIndex,
+  ADVANCED_MIN_RANGE_TOTAL, ADVANCED_RETRY_LIMIT,
   HERO_RANGE_ID, INTERMEDIATE_RETRY_LIMIT,
 } from '../config/gameConfig';
 import type { RangeCell, RangePattern } from './rangeQuestions';
@@ -19,7 +20,7 @@ import {
 } from './presetRanges';
 import { evaluateBest, handCategoryName } from './handEvaluator';
 
-// 4択の選択肢。初級・中級は数値の文字列、上級はコンボ数帯（例:「11〜40」）
+// 4択の選択肢。ラベルは数値の文字列（初級・中級はシャッフル済み、上級は昇順）
 export interface Choice {
   label: string;
   correct: boolean;
@@ -29,8 +30,8 @@ export interface Question {
   type: QuestionType;
   // リザルト画面用の問題文全文（プレイ画面は下の構造化フィールドから描画する）
   text: string;
-  answer: number; // 正確な答え（解説・リザルト画面用。上級は帯ではなくこの数値を表示する）
-  choices: Choice[]; // 4択（初級・中級はシャッフル済み、上級は昇順固定の帯）
+  answer: number; // 正確な答え（解説・リザルト画面でもこの数値を表示する）
+  choices: Choice[]; // 4択（初級・中級はシャッフル済み、上級は昇順の数値）
   explanation: string;
   // --- 3要素の出し分け（存在する要素だけをプレイ画面が描画する） ---
   rangeCells?: RangeCell[]; // レンジ表: 169セル（行優先）
@@ -385,15 +386,29 @@ export function countRangeVsHero(preset: PresetRange, board: Card[], hero: Card[
   return { lose, win, chop, total: lose + win + chop, heroScore, loseHands };
 }
 
-// 上級の4択は個別の数値ではなくコンボ数帯（バケット）。実戦で必要なのは正確な
-// カウントではなく「負けている可能性のオーダー」の見積もりなので、帯は大きく離す。
-// 選択肢はシャッフルせず常に昇順固定（位置が固定されると反射的な判断の訓練になる）
-function bucketChoices(answer: number): Choice[] {
-  const correctIndex = advancedBucketIndex(answer);
-  return ADVANCED_CHOICE_BUCKETS.map((bucket, i) => ({
-    label: bucket.label,
-    correct: i === correctIndex,
-  }));
+// 上級の4択は「正解の負けコンボ数 + 相手レンジの総コンボ数の全域に分散した誤答3つ」。
+// 問うのは近傍値の誤差ではなく「相手レンジに対する自分の強さのオーダー」なので、
+// 総コンボ数を比率で4ゾーンに分割し、正解が属さない3ゾーンから誤答を1つずつ抽選する。
+// 誤答はゾーンの端を避けて中央寄り（20%〜80%区間）から選び、正解がゾーン境界近くに
+// 落ちても選択肢同士の差が開くようにする。選択肢はシャッフルせず昇順で保持する
+// （テストから直接検証できるよう export する）
+export function advancedChoices(answer: number, total: number): Choice[] {
+  const zones = advancedChoiceZones(total);
+  const correctZone = advancedZoneIndex(answer, total);
+  const values = zones.map((zone, i) => {
+    if (i === correctZone) return answer;
+    const span = zone.max - zone.min;
+    let lo = zone.min + Math.ceil(span * 0.2);
+    let hi = zone.min + Math.floor(span * 0.8);
+    // ゾーンが狭く中央寄り区間が取れない場合はゾーン全体から抽選する
+    if (hi < lo) {
+      lo = zone.min;
+      hi = zone.max;
+    }
+    return lo + Math.floor(Math.random() * (hi - lo + 1));
+  });
+  values.sort((a, b) => a - b);
+  return values.map(v => ({ label: String(v), correct: v === answer }));
 }
 
 interface AdvancedCandidate {
@@ -433,7 +448,7 @@ function buildAdvancedQuestion(c: AdvancedCandidate): Question {
     type: 'range-vs-board',
     text,
     answer,
-    choices: bucketChoices(answer),
+    choices: advancedChoices(answer, c.counts.total),
     explanation,
     rangeCells: cells,
     rangeLabel: '相手のレンジ',
@@ -446,10 +461,12 @@ function buildAdvancedQuestion(c: AdvancedCandidate): Question {
 function makeAdvancedQuestion(): Question {
   const heroRange = getPresetRange(HERO_RANGE_ID);
 
-  // 正解バケットの偏り防止: 目標の帯を一様ランダムに選び、負けコンボ数がそこに
-  // 落ちるまで再抽選する。これがないと答えが特定の帯に偏り、いつも同じ選択肢を
+  // 正解ゾーンの偏り防止: 目標のゾーンを一様ランダムに選び、負けコンボ数が
+  // 候補の総コンボ数から導出したゾーンのうちそこに落ちるまで再抽選する。
+  // これがないと答えが下位ゾーンに偏り、いつも同じ水準の選択肢を
   // 押せば当たるクイズに退化してしまう
-  const targetBucket = Math.floor(Math.random() * ADVANCED_CHOICE_BUCKETS.length);
+  const zoneCount = advancedChoiceZones(ADVANCED_MIN_RANGE_TOTAL).length;
+  const targetZone = Math.floor(Math.random() * zoneCount);
   let candidate: AdvancedCandidate | null = null;
 
   for (let attempt = 0; attempt < ADVANCED_RETRY_LIMIT; attempt++) {
@@ -459,7 +476,9 @@ function makeAdvancedQuestion(): Question {
     const counts = countRangeVsHero(preset, board, hero);
     candidate = { preset, board, hero, street, counts };
 
-    if (advancedBucketIndex(counts.lose) === targetBucket) break;
+    // 総コンボ数が極端に小さい候補は4ゾーンに分割できないため問題として採用しない
+    if (counts.total < ADVANCED_MIN_RANGE_TOTAL) continue;
+    if (advancedZoneIndex(counts.lose, counts.total) === targetZone) break;
   }
 
   // 打ち切り時も最終候補をそのまま採用する（どの帯に落ちても問題として成立する）

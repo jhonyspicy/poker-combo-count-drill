@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  ADVANCED_CHOICE_BUCKETS, advancedBucketIndex,
+  advancedChoiceZones, advancedZoneIndex, ADVANCED_MIN_RANGE_TOTAL,
   DIFFICULTIES, DIFFICULTY_CONFIG, getTimeLimitSec, isDifficulty,
 } from '../../config/gameConfig';
 
@@ -34,35 +34,46 @@ describe('getTimeLimitSec: 連続正解数に応じた制限時間の短縮', ()
   });
 });
 
-describe('上級バケット: 境界値からの帯の導出と判定', () => {
-  it('初期値 [10, 40, 80] から4帯（0〜10 / 11〜40 / 41〜80 / 81以上）を導出する', () => {
-    expect(ADVANCED_CHOICE_BUCKETS).toEqual([
-      { min: 0, max: 10, label: '0〜10' },
-      { min: 11, max: 40, label: '11〜40' },
-      { min: 41, max: 80, label: '41〜80' },
-      { min: 81, max: null, label: '81以上' },
+describe('上級ゾーン: 総コンボ数からのゾーン導出と判定', () => {
+  it('総コンボ数 150 では比率 [0.07, 0.27, 0.53] に応じたゾーンになる', () => {
+    expect(advancedChoiceZones(150)).toEqual([
+      { min: 0, max: 10 },
+      { min: 11, max: 40 },
+      { min: 41, max: 79 },
+      { min: 80, max: 150 },
     ]);
   });
 
-  it('帯は重複せず、任意の負けコンボ数がちょうど1つの帯に属する', () => {
-    for (let count = 0; count <= 200; count++) {
-      const hits = ADVANCED_CHOICE_BUCKETS.filter(
-        b => count >= b.min && (b.max === null || count <= b.max)
-      );
-      expect(hits).toHaveLength(1);
-      expect(ADVANCED_CHOICE_BUCKETS[advancedBucketIndex(count)]).toBe(hits[0]);
+  it('ゾーンは4つで、0 から始まり total で終わる連続した整数区間になる', () => {
+    for (const total of [ADVANCED_MIN_RANGE_TOTAL, 50, 100, 150, 500, 1326]) {
+      const zones = advancedChoiceZones(total);
+      expect(zones).toHaveLength(4);
+      expect(zones[0].min).toBe(0);
+      expect(zones[zones.length - 1].max).toBe(total);
+      for (let i = 0; i < zones.length; i++) {
+        expect(zones[i].max).toBeGreaterThanOrEqual(zones[i].min);
+        if (i > 0) expect(zones[i].min).toBe(zones[i - 1].max + 1);
+      }
     }
   });
 
-  it('境界値ちょうどは下の帯・境界値+1 は上の帯に属する', () => {
-    expect(advancedBucketIndex(0)).toBe(0);
-    expect(advancedBucketIndex(10)).toBe(0);
-    expect(advancedBucketIndex(11)).toBe(1);
-    expect(advancedBucketIndex(40)).toBe(1);
-    expect(advancedBucketIndex(41)).toBe(2);
-    expect(advancedBucketIndex(80)).toBe(2);
-    expect(advancedBucketIndex(81)).toBe(3);
-    expect(advancedBucketIndex(1000)).toBe(3);
+  it('0〜total の全整数がちょうど1つのゾーンに属し、判定と一致する', () => {
+    for (const total of [ADVANCED_MIN_RANGE_TOTAL, 150, 300]) {
+      const zones = advancedChoiceZones(total);
+      for (let count = 0; count <= total; count++) {
+        const hits = zones.filter(z => count >= z.min && count <= z.max);
+        expect(hits).toHaveLength(1);
+        expect(zones[advancedZoneIndex(count, total)]).toEqual(hits[0]);
+      }
+    }
+  });
+
+  it('総コンボ数が変わればゾーン境界も比例して変わる', () => {
+    const small = advancedChoiceZones(50);
+    const large = advancedChoiceZones(500);
+    for (let i = 0; i < 3; i++) {
+      expect(large[i].max).toBeGreaterThan(small[i].max);
+    }
   });
 });
 

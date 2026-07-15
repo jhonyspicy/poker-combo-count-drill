@@ -56,37 +56,48 @@ export const HERO_RANGE_ID = 'open-range';
 // 中級問題: 出題条件（デッドカードが絡むハンドが存在する）を満たすまでの再抽選の上限回数
 export const INTERMEDIATE_RETRY_LIMIT = 10;
 
-// 上級問題: 4択のコンボ数帯（バケット）の境界値（昇順・上限は各帯に含む）。
-// [10, 40, 80] なら「0〜10 / 11〜40 / 41〜80 / 81以上」の4帯になる。
-// 実戦では正確なカウントより「負けている可能性のオーダー」を掴むことが重要なので、
-// 選択肢は近傍値ではなく大きく離れた帯にする
-export const ADVANCED_CHOICE_BUCKET_BOUNDS = [10, 40, 80];
+// 上級問題: 4択の分散を決めるゾーン比率境界（昇順・0〜1）。
+// 相手レンジの総コンボ数（デッドカード除外後）に掛けてゾーン境界を導出し、
+// 4択は「正解 + 正解が属さない3ゾーンから1つずつ」で 0〜総コンボ数の全域に分散させる。
+// 目的は「自分のハンドが相手レンジに対してどのくらい強いか」の相対感覚を問うことなので、
+// 近傍値の誤差ではなくオーダーの違いを問える分散にする（プレイ感を見て調整する前提の初期値）
+export const ADVANCED_CHOICE_ZONE_RATIOS = [0.07, 0.27, 0.53];
 
-export interface ChoiceBucket {
+// 上級問題: 問題として成立する総コンボ数の下限。これ未満だと4ゾーンに分割できない
+// 恐れがあるため候補を再抽選する（実プリセットではまず発生しない安全弁）
+export const ADVANCED_MIN_RANGE_TOTAL = 20;
+
+export interface ChoiceZone {
   min: number;
-  max: number | null; // null = 上限なし（最上位帯「N以上」）
-  label: string;
+  max: number;
 }
 
-// 境界値から4択の帯を導出する（ラベル・判定をハードコードしない）
-export const ADVANCED_CHOICE_BUCKETS: ChoiceBucket[] = [
-  ...ADVANCED_CHOICE_BUCKET_BOUNDS.map((bound, i) => {
-    const min = i === 0 ? 0 : ADVANCED_CHOICE_BUCKET_BOUNDS[i - 1] + 1;
-    return { min, max: bound, label: `${min}〜${bound}` };
-  }),
-  {
-    min: ADVANCED_CHOICE_BUCKET_BOUNDS[ADVANCED_CHOICE_BUCKET_BOUNDS.length - 1] + 1,
-    max: null,
-    label: `${ADVANCED_CHOICE_BUCKET_BOUNDS[ADVANCED_CHOICE_BUCKET_BOUNDS.length - 1] + 1}以上`,
-  },
-];
-
-// 負けコンボ数（0以上）が属する帯のインデックスを返す
-export function advancedBucketIndex(count: number): number {
-  return ADVANCED_CHOICE_BUCKETS.findIndex(b => b.max === null || count <= b.max);
+// 総コンボ数から4択用の4ゾーン（整数区間）を導出する。
+// 隣接ゾーンは重複せず、0〜total の全整数がちょうど1つのゾーンに属する。
+// total が ADVANCED_MIN_RANGE_TOTAL 以上であることを前提とする
+export function advancedChoiceZones(total: number): ChoiceZone[] {
+  // 境界は単調増加を強制する（極小 total でもゾーンが空にならないように）
+  const bounds: number[] = [];
+  for (let i = 0; i < ADVANCED_CHOICE_ZONE_RATIOS.length; i++) {
+    const scaled = Math.round(total * ADVANCED_CHOICE_ZONE_RATIOS[i]);
+    bounds.push(Math.max(scaled, i === 0 ? 1 : bounds[i - 1] + 1));
+  }
+  const mins = [0, ...bounds];
+  return mins.map((min, i) => ({
+    min,
+    max: i < bounds.length ? bounds[i] - 1 : total,
+  }));
 }
 
-// 上級問題: 目標バケット狙いの再抽選の上限回数（超えたら最後の候補を採用する）
+// 負けコンボ数（0〜total）が属するゾーンのインデックスを返す
+export function advancedZoneIndex(count: number, total: number): number {
+  const zones = advancedChoiceZones(total);
+  const index = zones.findIndex(z => count >= z.min && count <= z.max);
+  // total を超える値は理論上来ないが、来ても最上位ゾーンに落とす
+  return index === -1 ? zones.length - 1 : index;
+}
+
+// 上級問題: 目標ゾーン狙いの再抽選の上限回数（超えたら最後の候補を採用する）
 export const ADVANCED_RETRY_LIMIT = 40;
 // 上級問題: 序盤ヒント（負けセルの二重ハイライト）を表示する問題数。
 // 連続正解数がこの値未満の間だけレンジ表に負けセルが表示される
